@@ -1,7 +1,7 @@
 services:
   store:
     build: .
-    container_name: arden-oak-store
+    container_name: parc-ferme-store
     ports:
       - "4000:4000"
     environment:

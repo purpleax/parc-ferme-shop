@@ -315,8 +315,12 @@ docker compose up --build
 # → http://localhost:4000  (single container: API + built frontend)
 ```
 
-The container auto-seeds on first start and persists the database in the
-`store-data` volume. Reset to fresh demo data with:
+The container runs as the non-root `node` user and auto-seeds on first start,
+persisting the database in the `store-data` named volume. If you ran an earlier
+build that crash-looped on `unable to open database file`, delete the stale
+root-owned volume first: `docker compose down -v && docker compose up --build`.
+
+Reset to fresh demo data at any time with:
 
 ```bash
 docker compose down -v && docker compose up
@@ -353,6 +357,7 @@ and the cacheable image endpoint are all served from that one origin.
 | A product shows old/wrong artwork after re-running `fetch-images` | Images are served with a 1-day `immutable` cache. Hard-refresh (Cmd/Ctrl+Shift+R) or open a private window. |
 | `npm run fetch-images` reports `429` and some images fall back to SVG | Wikimedia rate-limited you. The script backs off and is re-runnable — just run it again; already-downloaded files are skipped. |
 | Docker build fails on `npm ci` | Stale lockfiles after editing package.json manually — run `npm install` in `server/` and `client/` locally and rebuild. |
+| Docker container crash-loops with `unable to open database file` (`ERR_SQLITE_ERROR`) | The `store-data` volume was created root-owned by an earlier build, and the container runs as the non-root `node` user. Remove the stale volume and rebuild: `docker compose down -v && docker compose up --build`. |
 | 401 on every authenticated call after server restart with a new `JWT_SECRET` | Old browser token was signed with the previous secret. Sign out and back in. |
 
 ## Security notes for the demo environment

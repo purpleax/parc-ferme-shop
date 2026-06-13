@@ -4,9 +4,11 @@
 //       client-challenges/embedding-challenges-in-pages/
 //
 // How it works: when the app is served behind a Fastly service with embedded
-// client challenges enabled, Fastly serves a small challenge script from a
-// service-specific path (e.g. "/_fs-ch-1T1wmsGaOgGaSxcX/challenge.js"). The
-// script attaches to any `<div class="fastly-challenge">` on the page and
+// client challenges enabled, Fastly serves a small challenge script at the
+// universal prefix "/_fs-ch-1T1wmsGaOgGaSxcX/" plus the filename you chose
+// (e.g. "/_fs-ch-1T1wmsGaOgGaSxcX/challenge.js"). The prefix is the same for
+// every Fastly customer; only the filename is customer-chosen. The script
+// attaches to any `<div class="fastly-challenge">` on the page and
 // reflects its progress on that element's `data-challenge-status` attribute
 // (started → processing → complete, or captcha_prompted / error). Once the
 // challenge completes, Fastly mints a token (cookie) that its edge validates on

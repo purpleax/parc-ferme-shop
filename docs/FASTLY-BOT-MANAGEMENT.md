@@ -7,7 +7,9 @@ discreet **"Verified by Fastly Bot Management"** badge in the storefront design.
 
 The integration is **dormant until configured**, so local development, the test
 suite and CI are unaffected. It activates automatically once the app is built
-with the challenge script path for your Fastly service.
+with the challenge script **filename** you chose in Fastly — the path prefix
+(`/_fs-ch-1T1wmsGaOgGaSxcX/`) is the same for every Fastly customer and is built
+in, so only the filename is needed.
 
 ---
 
@@ -15,7 +17,8 @@ with the challenge script path for your Fastly service.
 
 When configured, on the critical-path screens the app:
 
-1. Loads Fastly's per-service challenge script (`/_fs-ch-<id>/challenge.js`).
+1. Loads Fastly's challenge script (the universal `/_fs-ch-1T1wmsGaOgGaSxcX/`
+   prefix + your chosen filename, e.g. `/_fs-ch-1T1wmsGaOgGaSxcX/challenge.js`).
 2. Renders a `<div class="fastly-challenge">` mount that Fastly drives through
    its lifecycle, reflected on the element's `data-challenge-status` attribute
    (`started` → `processing` → `complete`, or `captcha_prompted` / `error`).

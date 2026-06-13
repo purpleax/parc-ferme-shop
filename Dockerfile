@@ -5,13 +5,19 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ ./
-# Optional Fastly Bot Management embedded-challenge path (baked in at build time).
-# Pass with: docker compose build --build-arg VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<id>/challenge.js
+# Optional Fastly Bot Management embedded-challenge config, baked in at build time.
+# Two ways to set it, either works:
+#   1) create client/.env with VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<id>/challenge.js
+#   2) pass --build-arg VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<id>/challenge.js
+# A non-empty build-arg takes precedence; otherwise client/.env is used. (We must
+# NOT set an empty ENV here — it would shadow the client/.env file at build.)
 ARG VITE_FASTLY_CHALLENGE_PATH=""
-ARG VITE_FASTLY_CHALLENGE_FAILOPEN="true"
-ENV VITE_FASTLY_CHALLENGE_PATH=$VITE_FASTLY_CHALLENGE_PATH \
-    VITE_FASTLY_CHALLENGE_FAILOPEN=$VITE_FASTLY_CHALLENGE_FAILOPEN
-RUN npm run build
+ARG VITE_FASTLY_CHALLENGE_FAILOPEN=""
+# If a build-arg is provided, export it (it takes precedence over client/.env);
+# if empty, unset it so it can't shadow client/.env at build time.
+RUN if [ -n "$VITE_FASTLY_CHALLENGE_PATH" ]; then export VITE_FASTLY_CHALLENGE_PATH="$VITE_FASTLY_CHALLENGE_PATH"; else unset VITE_FASTLY_CHALLENGE_PATH; fi; \
+    if [ -n "$VITE_FASTLY_CHALLENGE_FAILOPEN" ]; then export VITE_FASTLY_CHALLENGE_FAILOPEN="$VITE_FASTLY_CHALLENGE_FAILOPEN"; else unset VITE_FASTLY_CHALLENGE_FAILOPEN; fi; \
+    npm run build
 
 # Stage 2: runtime — Express API serving the built frontend.
 # node:sqlite is built into Node 22.5+, so no native compilation is needed.

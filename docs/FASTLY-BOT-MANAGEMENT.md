@@ -60,12 +60,22 @@ echo 'VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js' > client/.env.l
 npm run dev
 ```
 
-`VITE_*` vars are **baked in at build time**. For the Docker image, pass it as a
-build arg (see `Dockerfile` / `docker-compose.yml`):
+`VITE_*` vars are **baked in at build time** (not read at container runtime), so
+the value must be present when the frontend is built. For the Docker image either
+approach works:
 
 ```bash
+# Option 1 — create client/.env (it's copied into the build context):
+echo 'VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js' > client/.env
+docker compose up --build
+
+# Option 2 — pass it as a build arg (overrides client/.env if both are set):
 docker compose build --build-arg VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js
+# or: VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js docker compose up --build
 ```
+
+> Because it's baked in at build time, changing the path means **rebuilding** the
+> image (`--build`), not just restarting the container.
 
 ---
 

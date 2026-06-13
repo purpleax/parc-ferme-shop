@@ -378,10 +378,10 @@ with a discreet **"Verified by Fastly Bot Management"** badge that fits the desi
 and a soft gate that disables the action until the device is verified.
 
 It's **dormant until configured** — local dev, tests and CI are unaffected. Set
-`VITE_FASTLY_CHALLENGE_PATH` (the challenge script path for your Fastly service)
-to activate it. Full setup, the list of edge paths to protect, and the
-fail-open/Docker build-arg details are in
-**[docs/FASTLY-BOT-MANAGEMENT.md](docs/FASTLY-BOT-MANAGEMENT.md)**.
+`VITE_FASTLY_CHALLENGE_FILE` to the challenge script filename you chose in Fastly
+(the `/_fs-ch-1T1wmsGaOgGaSxcX/` prefix is universal and built in) to activate it.
+Full setup, the list of edge paths to protect, and the fail-open/Docker build
+details are in **[docs/FASTLY-BOT-MANAGEMENT.md](docs/FASTLY-BOT-MANAGEMENT.md)**.
 
 ## Attribution & license
 

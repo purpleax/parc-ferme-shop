@@ -47,16 +47,24 @@ Browsing, search, category and content pages are intentionally left untouched.
 
 ## Configuration
 
+The challenge script URL is `<prefix><filename>`, e.g.
+`/_fs-ch-1T1wmsGaOgGaSxcX/challenge.js`. The prefix `/_fs-ch-1T1wmsGaOgGaSxcX/`
+is **the same for every Fastly customer** — only the **filename** is yours to
+choose (you pick it when enabling embedded challenges). So in almost all cases
+you only set the filename; the prefix is built in.
+
 Build-time environment variables (Vite). See [`client/.env.example`](../client/.env.example).
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | The challenge script path Fastly generates for your service, e.g. `/_fs-ch-1T1wmsGaOgGaSxcX/challenge.js`. Empty = integration dormant. |
+| `VITE_FASTLY_CHALLENGE_FILE` | *(empty)* | The challenge script **filename** you chose, e.g. `challenge.js`. Empty = integration dormant. **This is normally the only one you set.** |
+| `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | Full path override; wins over `FILE`. Only needed for a non-standard URL. |
+| `VITE_FASTLY_CHALLENGE_PREFIX` | `/_fs-ch-1T1wmsGaOgGaSxcX/` | The universal prefix. Override only if Fastly ever changes it. |
 | `VITE_FASTLY_CHALLENGE_FAILOPEN` | `true` | `false` keeps actions gated if the challenge script can't load. Default fails open after ~8s so a Fastly asset hiccup can't lock customers out. |
 
 ```bash
 # Local build / dev with the challenge active:
-echo 'VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js' > client/.env.local
+echo 'VITE_FASTLY_CHALLENGE_FILE=challenge.js' > client/.env.local
 npm run dev
 ```
 
@@ -66,16 +74,16 @@ approach works:
 
 ```bash
 # Option 1 — create client/.env (it's copied into the build context):
-echo 'VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js' > client/.env
+echo 'VITE_FASTLY_CHALLENGE_FILE=challenge.js' > client/.env
 docker compose up --build
 
 # Option 2 — pass it as a build arg (overrides client/.env if both are set):
-docker compose build --build-arg VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js
-# or: VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<your-id>/challenge.js docker compose up --build
+docker compose build --build-arg VITE_FASTLY_CHALLENGE_FILE=challenge.js
+# or: VITE_FASTLY_CHALLENGE_FILE=challenge.js docker compose up --build
 ```
 
-> Because it's baked in at build time, changing the path means **rebuilding** the
-> image (`--build`), not just restarting the container.
+> Because it's baked in at build time, changing the filename means **rebuilding**
+> the image (`--build`), not just restarting the container.
 
 ---
 
@@ -85,9 +93,10 @@ These steps happen on your Fastly service, not in this repo:
 
 1. Enable **Bot Management** and the **Next-Gen WAF** on the service in front of
    the store, and turn on **client challenges**.
-2. Enable **embedded** challenges and note the generated challenge script path
-   (`/_fs-ch-<id>/challenge.js`). Put that path in `VITE_FASTLY_CHALLENGE_PATH`
-   and rebuild the frontend.
+2. Enable **embedded** challenges and choose the script **filename** (e.g.
+   `challenge.js`). The full URL is the universal prefix
+   `/_fs-ch-1T1wmsGaOgGaSxcX/` followed by that filename. Put just the filename in
+   `VITE_FASTLY_CHALLENGE_FILE` and rebuild the frontend.
 3. Configure which requests require a valid challenge token. Match the actions
    the UI guards so the edge enforces what the storefront implies:
 

@@ -4,7 +4,9 @@ services:
       context: .
       args:
         # Optional: activate Fastly Bot Management embedded challenges by setting
-        # the challenge script path for your Fastly service (baked in at build).
+        # the challenge script filename you chose (the prefix is built in). Baked
+        # in at build time. A full-path override is also supported.
+        VITE_FASTLY_CHALLENGE_FILE: "${VITE_FASTLY_CHALLENGE_FILE:-}"
         VITE_FASTLY_CHALLENGE_PATH: "${VITE_FASTLY_CHALLENGE_PATH:-}"
     container_name: parc-ferme-store
     ports:

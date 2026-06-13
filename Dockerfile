@@ -7,15 +7,17 @@ RUN npm ci
 COPY client/ ./
 # Optional Fastly Bot Management embedded-challenge config, baked in at build time.
 # Two ways to set it, either works:
-#   1) create client/.env with VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<id>/challenge.js
-#   2) pass --build-arg VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<id>/challenge.js
-# A non-empty build-arg takes precedence; otherwise client/.env is used. (We must
-# NOT set an empty ENV here — it would shadow the client/.env file at build.)
+#   1) create client/.env with VITE_FASTLY_CHALLENGE_FILE=<your-filename>.js
+#   2) pass --build-arg VITE_FASTLY_CHALLENGE_FILE=<your-filename>.js
+# (Only the filename is needed — the universal prefix is built in. A full-path
+# override, VITE_FASTLY_CHALLENGE_PATH, is also supported.) A non-empty build-arg
+# takes precedence; otherwise client/.env is used. We must NOT set empty ENVs
+# here — that would shadow the client/.env file at build.
+ARG VITE_FASTLY_CHALLENGE_FILE=""
 ARG VITE_FASTLY_CHALLENGE_PATH=""
 ARG VITE_FASTLY_CHALLENGE_FAILOPEN=""
-# If a build-arg is provided, export it (it takes precedence over client/.env);
-# if empty, unset it so it can't shadow client/.env at build time.
-RUN if [ -n "$VITE_FASTLY_CHALLENGE_PATH" ]; then export VITE_FASTLY_CHALLENGE_PATH="$VITE_FASTLY_CHALLENGE_PATH"; else unset VITE_FASTLY_CHALLENGE_PATH; fi; \
+RUN if [ -n "$VITE_FASTLY_CHALLENGE_FILE" ]; then export VITE_FASTLY_CHALLENGE_FILE="$VITE_FASTLY_CHALLENGE_FILE"; else unset VITE_FASTLY_CHALLENGE_FILE; fi; \
+    if [ -n "$VITE_FASTLY_CHALLENGE_PATH" ]; then export VITE_FASTLY_CHALLENGE_PATH="$VITE_FASTLY_CHALLENGE_PATH"; else unset VITE_FASTLY_CHALLENGE_PATH; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_FAILOPEN" ]; then export VITE_FASTLY_CHALLENGE_FAILOPEN="$VITE_FASTLY_CHALLENGE_FAILOPEN"; else unset VITE_FASTLY_CHALLENGE_FAILOPEN; fi; \
     npm run build
 

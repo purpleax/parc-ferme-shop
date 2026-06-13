@@ -12,18 +12,39 @@
 // challenge completes, Fastly mints a token (cookie) that its edge validates on
 // subsequent requests to the paths you protect (login, cart, checkout, …).
 //
+// The challenge URL has the shape `<prefix><filename>`, e.g.
+// `/_fs-ch-1T1wmsGaOgGaSxcX/challenge.js`. The prefix `/_fs-ch-1T1wmsGaOgGaSxcX/`
+// is the SAME for every Fastly customer — only the filename is customer-chosen
+// (you pick it when enabling embedded challenges). So you normally only need to
+// set the filename; the prefix is built in (and overridable).
+//
 // Configuration (build-time, Vite):
-//   VITE_FASTLY_CHALLENGE_PATH      the challenge.js path for your Fastly service
+//   VITE_FASTLY_CHALLENGE_FILE      the script filename you chose, e.g. "challenge.js"
+//   VITE_FASTLY_CHALLENGE_PATH      full path override (wins over FILE) if ever needed
+//   VITE_FASTLY_CHALLENGE_PREFIX    override the universal prefix (default below)
 //   VITE_FASTLY_CHALLENGE_FAILOPEN  "false" to keep actions gated if the script
 //                                   can't load (default "true" = fail open)
 //
-// When VITE_FASTLY_CHALLENGE_PATH is empty the integration is DORMANT: no badge
-// renders and nothing is gated, so local development and CI are unaffected. The
-// real challenge activates automatically once the path is set.
+// When neither FILE nor PATH is set the integration is DORMANT: no badge renders
+// and nothing is gated, so local development and CI are unaffected. The real
+// challenge activates automatically once a filename (or full path) is set.
 
 const env = import.meta.env as Record<string, string | undefined>;
 
-export const challengePath = (env.VITE_FASTLY_CHALLENGE_PATH ?? '').trim();
+// Universal Fastly embedded-challenge path prefix (identical across customers).
+export const DEFAULT_CHALLENGE_PREFIX = '/_fs-ch-1T1wmsGaOgGaSxcX/';
+
+function resolveChallengePath(): string {
+  const explicit = (env.VITE_FASTLY_CHALLENGE_PATH ?? '').trim();
+  if (explicit) return explicit;
+  const file = (env.VITE_FASTLY_CHALLENGE_FILE ?? '').trim();
+  if (!file) return '';
+  const rawPrefix = (env.VITE_FASTLY_CHALLENGE_PREFIX ?? DEFAULT_CHALLENGE_PREFIX).trim();
+  const prefix = rawPrefix.endsWith('/') ? rawPrefix : `${rawPrefix}/`;
+  return `${prefix}${file.replace(/^\/+/, '')}`;
+}
+
+export const challengePath = resolveChallengePath();
 export const challengeConfigured = challengePath.length > 0;
 export const challengeFailOpen = (env.VITE_FASTLY_CHALLENGE_FAILOPEN ?? 'true').toLowerCase() !== 'false';
 

@@ -61,7 +61,7 @@ Build-time environment variables (Vite). See [`client/.env.example`](../client/.
 | Variable | Default | Purpose |
 |---|---|---|
 | `VITE_FASTLY_CHALLENGE_FILE` | *(empty)* | The challenge script **filename** you chose, e.g. `challenge.js`. Empty = integration dormant. **This is normally the only one you set.** |
-| `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | Full path override; wins over `FILE`. Only needed for a non-standard URL. |
+| `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | Full path override; wins over `FILE`. Only needed for a non-standard URL. A bare filename here is auto-prefixed too, and any value is forced root-absolute so the script can never load page-relative (e.g. `/product/challenge.js`). |
 | `VITE_FASTLY_CHALLENGE_PREFIX` | `/_fs-ch-1T1wmsGaOgGaSxcX/` | The universal prefix. Override only if Fastly ever changes it. |
 | `VITE_FASTLY_CHALLENGE_FAILOPEN` | `true` | `false` keeps actions gated if the challenge script can't load. Default fails open after ~8s so a Fastly asset hiccup can't lock customers out. |
 

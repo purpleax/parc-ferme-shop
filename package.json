@@ -13,7 +13,9 @@
     "typecheck": "npm run typecheck --prefix server && npm run typecheck --prefix client",
     "build": "npm run build --prefix client",
     "fetch-images": "node scripts/fetch-images.mjs",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "spec": "npm run spec --prefix server",
+    "simulate": "node scripts/simulate.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

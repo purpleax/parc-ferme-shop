@@ -1,6 +1,11 @@
 services:
   store:
-    build: .
+    build:
+      context: .
+      args:
+        # Optional: activate Fastly Bot Management embedded challenges by setting
+        # the challenge script path for your Fastly service (baked in at build).
+        VITE_FASTLY_CHALLENGE_PATH: "${VITE_FASTLY_CHALLENGE_PATH:-}"
     container_name: parc-ferme-store
     ports:
       - "4000:4000"

@@ -370,6 +370,19 @@ and the cacheable image endpoint are all served from that one origin.
 - The newsletter endpoint, auth endpoints and search are the intended
   bot/abuse demo surfaces; the image endpoint is the intended CDN surface.
 
+## Fastly Bot Management (embedded client challenges)
+
+The storefront integrates Fastly Bot Management **embedded client challenges** on
+its critical actions (login, register, add-to-cart, cart, checkout, payment),
+with a discreet **"Verified by Fastly Bot Management"** badge that fits the design
+and a soft gate that disables the action until the device is verified.
+
+It's **dormant until configured** — local dev, tests and CI are unaffected. Set
+`VITE_FASTLY_CHALLENGE_PATH` (the challenge script path for your Fastly service)
+to activate it. Full setup, the list of edge paths to protect, and the
+fail-open/Docker build-arg details are in
+**[docs/FASTLY-BOT-MANAGEMENT.md](docs/FASTLY-BOT-MANAGEMENT.md)**.
+
 ## Attribution & license
 
 - **Code** is released under the MIT License (see [`LICENSE`](LICENSE)).

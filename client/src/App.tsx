@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
+import { FastlyChallengeProvider } from './context/FastlyChallengeContext';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
@@ -35,6 +36,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <ToastProvider>
+      <FastlyChallengeProvider>
       <AuthProvider>
         <CartProvider>
           <BrowserRouter>
@@ -82,6 +84,7 @@ export default function App() {
           </BrowserRouter>
         </CartProvider>
       </AuthProvider>
+      </FastlyChallengeProvider>
     </ToastProvider>
   );
 }

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useDeviceVerification } from '../context/FastlyChallengeContext';
 import { ApiError } from '../lib/api';
+import { DeviceVerification } from '../components/DeviceVerification';
 import { Field, Spinner } from '../components/ui';
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
@@ -25,6 +27,7 @@ function detailErrors(err: unknown): Record<string, string> {
 
 export function Login() {
   const { login } = useAuth();
+  const { verified } = useDeviceVerification();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next') ?? '/';
@@ -63,12 +66,13 @@ export function Login() {
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
         <button
-          disabled={busy}
+          disabled={busy || !verified}
           className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
         >
           {busy && <Spinner className="h-4 w-4" />}
           Sign in
         </button>
+        <DeviceVerification className="w-full justify-center" />
       </form>
       <p className="mt-5 text-center text-sm text-muted">
         New here?{' '}
@@ -82,6 +86,7 @@ export function Login() {
 
 export function Register() {
   const { register } = useAuth();
+  const { verified } = useDeviceVerification();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next') ?? '/';
@@ -128,12 +133,13 @@ export function Register() {
           placeholder="8+ characters, a letter and a number"
         />
         <button
-          disabled={busy}
+          disabled={busy || !verified}
           className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
         >
           {busy && <Spinner className="h-4 w-4" />}
           Create account
         </button>
+        <DeviceVerification className="w-full justify-center" />
       </form>
       <p className="mt-5 text-center text-sm text-muted">
         Already have an account?{' '}

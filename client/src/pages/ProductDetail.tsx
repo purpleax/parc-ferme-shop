@@ -4,12 +4,15 @@ import { api, ApiError } from '../lib/api';
 import type { Product } from '../lib/types';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
+import { useDeviceVerification } from '../context/FastlyChallengeContext';
 import { ProductCard } from '../components/ProductCard';
+import { DeviceVerification } from '../components/DeviceVerification';
 import { Badge, EmptyState, QtyStepper, Spinner, Stars } from '../components/ui';
 
 export function ProductDetail() {
   const { slug } = useParams();
   const { addItem, busy } = useCart();
+  const { verified } = useDeviceVerification();
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
   const [qty, setQty] = useState(1);
@@ -125,7 +128,7 @@ export function ProductDetail() {
           <div className="mt-7 flex flex-wrap items-center gap-4">
             <QtyStepper qty={qty} onChange={setQty} max={Math.min(10, product.stock)} disabled={!inStock} />
             <button
-              disabled={!inStock || busy}
+              disabled={!inStock || busy || !verified}
               onClick={() => void addItem(product.id, qty).catch(() => {})}
               className="flex items-center gap-2 rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-50"
             >
@@ -133,6 +136,7 @@ export function ProductDetail() {
               {inStock ? 'Add to garage' : 'Out of stock'}
             </button>
           </div>
+          <DeviceVerification className="mt-3" />
 
           <dl className="mt-10 divide-y divide-line/60 border-y border-line/60 text-sm">
             {[

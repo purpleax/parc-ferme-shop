@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../lib/types';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
+import { useDeviceVerification } from '../context/FastlyChallengeContext';
 import { Badge, Stars } from './ui';
 
 export function ProductCard({ product }: { product: Product }) {
   const { addItem, busy } = useCart();
+  const { verified } = useDeviceVerification();
 
   return (
     <Link
@@ -32,7 +34,7 @@ export function ProductCard({ product }: { product: Product }) {
         )}
         <button
           type="button"
-          disabled={busy || product.stock === 0}
+          disabled={busy || product.stock === 0 || !verified}
           onClick={(e) => {
             e.preventDefault();
             void addItem(product.id, 1).catch(() => {});

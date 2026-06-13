@@ -81,8 +81,57 @@ body {
   transform: none;
 }
 
+/* ---- Fastly Bot Management embedded challenge ---- */
+
+/* The challenge container is empty until Fastly renders an interactive
+   (CAPTCHA) challenge into it; keep it out of the layout until then. */
+.fastly-challenge:empty {
+  display: none;
+}
+
+/* Discreet, themed panel that surfaces only when an interactive challenge is
+   prompted. Fixed bottom-centre so it reads as part of the store chrome. */
+.fastly-challenge-mount {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 50;
+  width: min(92vw, 22rem);
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-panel) 92%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fastly-challenge-mount.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+.fastly-challenge-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-snow);
+}
+.fastly-challenge-note {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+.fastly-challenge-mount .fastly-challenge {
+  margin-top: 0.6rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   html { scroll-behavior: auto; }
+  .fastly-challenge-mount { transition: none; }
 }

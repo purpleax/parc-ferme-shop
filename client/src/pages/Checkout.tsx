@@ -4,6 +4,8 @@ import { api, ApiError } from '../lib/api';
 import type { Order } from '../lib/types';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
+import { useDeviceVerification } from '../context/FastlyChallengeContext';
+import { DeviceVerification } from '../components/DeviceVerification';
 import { EmptyState, Field, Spinner } from '../components/ui';
 
 type Step = 'shipping' | 'payment';
@@ -33,6 +35,7 @@ function fieldErrors(err: unknown): Record<string, string> {
 
 export function Checkout() {
   const { cart, refresh } = useCart();
+  const { verified } = useDeviceVerification();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('shipping');
   const [order, setOrder] = useState<Order | null>(null);
@@ -226,13 +229,16 @@ export function Checkout() {
                 <Field label="Country" value={shipping.country} error={errors['shipping.country']}
                   onChange={(e) => setShipping({ ...shipping, country: e.target.value })} autoComplete="country-name" />
               </div>
-              <button
-                disabled={busy}
-                className="mt-2 flex items-center gap-2 rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
-              >
-                {busy && <Spinner className="h-4 w-4" />}
-                Continue to payment
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-4">
+                <button
+                  disabled={busy || !verified}
+                  className="flex items-center gap-2 rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
+                >
+                  {busy && <Spinner className="h-4 w-4" />}
+                  Continue to payment
+                </button>
+                <DeviceVerification />
+              </div>
             </form>
           ) : (
             <form onSubmit={submitPayment} className="animate-fade-up space-y-4 rounded-2xl bg-panel p-6 shadow-sm" noValidate>
@@ -287,15 +293,16 @@ export function Checkout() {
                 />
               </div>
 
-              <div className="flex items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-4 pt-2">
                 <button
-                  disabled={busy}
+                  disabled={busy || !verified}
                   className="flex items-center gap-2 rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
                 >
                   {busy && <Spinner className="h-4 w-4" />}
                   {busy ? 'Processing…' : `Pay ${formatPrice(totals.total)}`}
                 </button>
                 <span className="text-xs text-muted">Card details are never stored.</span>
+                <DeviceVerification className="w-full" />
               </div>
             </form>
           )}

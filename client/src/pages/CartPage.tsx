@@ -1,7 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useDeviceVerification } from '../context/FastlyChallengeContext';
 import { formatPrice } from '../lib/format';
+import { DeviceVerification } from '../components/DeviceVerification';
 import { EmptyState, QtyStepper } from '../components/ui';
 
 const FREE_SHIPPING_CENTS = 25000;
@@ -9,6 +11,7 @@ const FREE_SHIPPING_CENTS = 25000;
 export function CartPage() {
   const { cart, busy, updateItem, removeItem } = useCart();
   const { user } = useAuth();
+  const { verified } = useDeviceVerification();
   const navigate = useNavigate();
 
   if (!cart || cart.items.length === 0) {
@@ -112,11 +115,12 @@ export function CartPage() {
 
             <button
               onClick={checkout}
-              disabled={busy}
+              disabled={busy || !verified}
               className="mt-6 w-full rounded-full bg-accent py-3.5 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
             >
               {user ? 'Checkout' : 'Sign in to checkout'}
             </button>
+            <DeviceVerification className="mt-3 w-full justify-center" />
             <Link to="/shop" className="mt-3 block text-center text-sm text-muted hover:text-accent">
               Continue shopping
             </Link>

@@ -5,6 +5,12 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ ./
+# Optional Fastly Bot Management embedded-challenge path (baked in at build time).
+# Pass with: docker compose build --build-arg VITE_FASTLY_CHALLENGE_PATH=/_fs-ch-<id>/challenge.js
+ARG VITE_FASTLY_CHALLENGE_PATH=""
+ARG VITE_FASTLY_CHALLENGE_FAILOPEN="true"
+ENV VITE_FASTLY_CHALLENGE_PATH=$VITE_FASTLY_CHALLENGE_PATH \
+    VITE_FASTLY_CHALLENGE_FAILOPEN=$VITE_FASTLY_CHALLENGE_FAILOPEN
 RUN npm run build
 
 # Stage 2: runtime — Express API serving the built frontend.

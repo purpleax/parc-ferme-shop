@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# runtime data (recreated by `npm run seed` / at runtime)
+server/data/*.db*
+server/logs/
+
+# secrets & local config
+.env
+.env.*
+.claude/settings.local.json
+
+# OS
+.DS_Store

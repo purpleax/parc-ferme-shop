@@ -1,0 +1,20 @@
+services:
+  store:
+    build: .
+    container_name: arden-oak-store
+    ports:
+      - "4000:4000"
+    environment:
+      # Override for your environment as needed.
+      JWT_SECRET: change-me-for-your-demo
+      RATE_LIMIT_GENERAL: "300"
+      RATE_LIMIT_AUTH: "20"
+      RATE_LIMIT_NEWSLETTER: "10"
+    volumes:
+      # Persist the SQLite database between restarts. Remove the volume
+      # (docker compose down -v) to reset to fresh seed data.
+      - store-data:/app/server/data
+    restart: unless-stopped
+
+volumes:
+  store-data:

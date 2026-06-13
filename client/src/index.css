@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  --color-carbon: #0a0a0d;
+  --color-graphite: #16161b;
+  --color-panel: #121217;
+  --color-line: #28282f;
+  --color-snow: #f5f5f7;
+  --color-muted: #9b9ba6;
+  --color-accent: #e10600;
+  --color-accent-light: #ff2d23;
+  --color-terracotta: #ff7a00;
+  --color-gold: #ffc845;
+  --font-display: "Unbounded Variable", "Arial Black", sans-serif;
+  --font-body: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-carbon text-snow font-body antialiased;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(225, 6, 0, 0.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(225, 6, 0, 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-carbon);
+}
+
+/* Outlined display text (hero) */
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--color-snow);
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 32s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-graphite) 25%, var(--color-line) 50%, var(--color-graphite) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Scroll-reveal helper toggled by useReveal() */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  html { scroll-behavior: auto; }
+}

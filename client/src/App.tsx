@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import { FastlyChallengeProvider } from './context/FastlyChallengeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
@@ -35,6 +36,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <ToastProvider>
       <FastlyChallengeProvider>
       <AuthProvider>
@@ -86,5 +88,6 @@ export default function App() {
       </AuthProvider>
       </FastlyChallengeProvider>
     </ToastProvider>
+    </ErrorBoundary>
   );
 }

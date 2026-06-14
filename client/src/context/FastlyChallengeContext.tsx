@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   challengeConfigured,
   challengeFailOpen,
@@ -22,16 +22,41 @@ const FastlyChallengeContext = createContext<FastlyChallengeValue>({
 });
 
 export function FastlyChallengeProvider({ children }: { children: ReactNode }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<ChallengeStatus>(challengeConfigured ? 'started' : 'inactive');
 
   useEffect(() => {
     if (!challengeConfigured) return;
-    const el = containerRef.current;
-    if (!el) return;
+
+    // The Fastly challenge script mutates — and on its slower paths can replace —
+    // the `.fastly-challenge` node. We build that node OUTSIDE React's tree
+    // (appended directly to <body>) and never render it from JSX, so React never
+    // reconciles it. Otherwise a third-party DOM mutation inside a React-owned
+    // node can throw during reconciliation and blank the whole SPA — which is
+    // exactly what happened on Firefox, where the challenge falls back to a
+    // proof-of-work flow that injects more into the node.
+    document.querySelector('.fastly-challenge-mount')?.remove();
+
+    const mount = document.createElement('div');
+    mount.className = 'fastly-challenge-mount';
+
+    const title = document.createElement('p');
+    title.className = 'fastly-challenge-title';
+    title.textContent = 'Quick security check';
+
+    const el = document.createElement('div');
+    el.className = 'fastly-challenge';
+    el.setAttribute('data-challenge-status', 'started');
+
+    const note = document.createElement('p');
+    note.className = 'fastly-challenge-note';
+    note.textContent = 'Verifying your device with Fastly Bot Management.';
+
+    mount.append(title, el, note);
+    document.body.appendChild(mount);
 
     const read = () => {
       const next = (el.getAttribute('data-challenge-status') as ChallengeStatus) || 'started';
+      mount.classList.toggle('is-visible', next === 'captcha_prompted');
       setStatus(next);
     };
     const observer = new MutationObserver(read);
@@ -56,6 +81,7 @@ export function FastlyChallengeProvider({ children }: { children: ReactNode }) {
     return () => {
       observer.disconnect();
       if (failTimer) clearTimeout(failTimer);
+      mount.remove();
     };
   }, []);
 
@@ -65,15 +91,6 @@ export function FastlyChallengeProvider({ children }: { children: ReactNode }) {
   return (
     <FastlyChallengeContext.Provider value={{ configured: challengeConfigured, status, verified }}>
       {children}
-      {challengeConfigured && (
-        // Single interactive challenge mount. Hidden until Fastly prompts an
-        // interactive (CAPTCHA) challenge, then surfaced as a discreet panel.
-        <div className={`fastly-challenge-mount ${status === 'captcha_prompted' ? 'is-visible' : ''}`}>
-          <p className="fastly-challenge-title">Quick security check</p>
-          <div ref={containerRef} className="fastly-challenge" data-challenge-status="started" />
-          <p className="fastly-challenge-note">Verifying your device with Fastly Bot Management.</p>
-        </div>
-      )}
     </FastlyChallengeContext.Provider>
   );
 }

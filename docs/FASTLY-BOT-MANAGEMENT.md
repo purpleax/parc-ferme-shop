@@ -64,6 +64,22 @@ Build-time environment variables (Vite). See [`client/.env.example`](../client/.
 | `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | Full path override; wins over `FILE`. Only needed for a non-standard URL. A bare filename here is auto-prefixed too, and any value is forced root-absolute so the script can never load page-relative (e.g. `/product/challenge.js`). |
 | `VITE_FASTLY_CHALLENGE_PREFIX` | `/_fs-ch-1T1wmsGaOgGaSxcX/` | The universal prefix. Override only if Fastly ever changes it. |
 | `VITE_FASTLY_CHALLENGE_FAILOPEN` | `true` | `false` keeps actions gated if the challenge script can't load. Default fails open after ~8s so a Fastly asset hiccup can't lock customers out. |
+| `VITE_FASTLY_CHALLENGE_DISABLED` | *(empty)* | **Kill switch.** `true` fully disables the challenge (no `challenge.js`, no badge, no gating) even if a filename is set. See below. |
+
+### Kill switch
+
+To turn the challenge off completely — no `challenge.js` request, no badge, no
+gating — use any one of these (each independent):
+
+| Mechanism | Scope | Needs rebuild? |
+|---|---|---|
+| `VITE_FASTLY_CHALLENGE_DISABLED=true` | whole build | yes |
+| `window.FASTLY_CHALLENGE_DISABLED = true` | all users, instantly | no — inject at the Fastly edge (e.g. add `<script>window.FASTLY_CHALLENGE_DISABLED=true</script>` to the HTML via VCL) |
+| `?fastlychallenge=off` in the URL | one browser (persists in `localStorage`) | no — `?fastlychallenge=on` re-enables |
+
+The edge-injected `window` flag is the fastest global off-switch: it kills the
+challenge for everyone without redeploying the app. The URL switch is handy to
+unblock a single stuck browser.
 
 ```bash
 # Local build / dev with the challenge active:

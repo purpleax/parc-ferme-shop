@@ -8,6 +8,8 @@ services:
         # in at build time. A full-path override is also supported.
         VITE_FASTLY_CHALLENGE_FILE: "${VITE_FASTLY_CHALLENGE_FILE:-}"
         VITE_FASTLY_CHALLENGE_PATH: "${VITE_FASTLY_CHALLENGE_PATH:-}"
+        # Kill switch — set VITE_FASTLY_CHALLENGE_DISABLED=true to fully disable.
+        VITE_FASTLY_CHALLENGE_DISABLED: "${VITE_FASTLY_CHALLENGE_DISABLED:-}"
     container_name: parc-ferme-store
     ports:
       - "4000:4000"

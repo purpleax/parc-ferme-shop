@@ -59,8 +59,44 @@ function resolveChallengePath(): string {
   return withPrefix(file); // filename → always prefixed
 }
 
+// Kill switch — when on, NO challenge.js is loaded, no badge renders and nothing
+// is gated (fully dormant), regardless of any challenge filename/path. Three ways
+// to trigger it, in the order checked — each is an independent off-switch:
+//
+//   1. window.FASTLY_CHALLENGE_DISABLED === true
+//      Runtime + global. An operator can inject this at the Fastly edge
+//      (e.g. add `<script>window.FASTLY_CHALLENGE_DISABLED=true</script>` to the
+//      HTML via VCL) to kill the challenge for ALL users instantly — no rebuild.
+//
+//   2. VITE_FASTLY_CHALLENGE_DISABLED=true  (build-time env)
+//      A permanent off-switch baked into the build.
+//
+//   3. ?fastlychallenge=off  in the page URL
+//      Per-browser runtime escape hatch (persists in localStorage; ?fastlychallenge=on
+//      clears it). Handy to unblock a single stuck browser without a rebuild.
+function challengeDisabled(): boolean {
+  try {
+    if ((window as unknown as { FASTLY_CHALLENGE_DISABLED?: unknown }).FASTLY_CHALLENGE_DISABLED === true) {
+      return true;
+    }
+  } catch {
+    /* no window (tests/SSR) */
+  }
+  if ((env.VITE_FASTLY_CHALLENGE_DISABLED ?? '').toLowerCase() === 'true') return true;
+  try {
+    const q = new URLSearchParams(window.location.search).get('fastlychallenge');
+    if (q === 'off') localStorage.setItem('fastlyChallengeDisabled', '1');
+    else if (q === 'on') localStorage.removeItem('fastlyChallengeDisabled');
+    if (localStorage.getItem('fastlyChallengeDisabled') === '1') return true;
+  } catch {
+    /* no window/localStorage */
+  }
+  return false;
+}
+
+export const challengeKilled = challengeDisabled();
 export const challengePath = resolveChallengePath();
-export const challengeConfigured = challengePath.length > 0;
+export const challengeConfigured = !challengeKilled && challengePath.length > 0;
 export const challengeFailOpen = (env.VITE_FASTLY_CHALLENGE_FAILOPEN ?? 'true').toLowerCase() !== 'false';
 
 // How long to wait for the challenge to complete before, if fail-open is on,

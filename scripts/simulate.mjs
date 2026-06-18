@@ -161,7 +161,7 @@ async function call(actor, method, apiPath, template, { body, token } = {}) {
   record(template, status);
   if (VERBOSE) {
     const color = status === 0 || status >= 500 ? c.red : status >= 400 ? c.yellow : c.green;
-    console.log(`  ${color(String(status).padStart(3))} ${c.dim(actor.padEnd(10))} ${method.padEnd(6)} ${apiPath}`);
+    console.log(`  ${color(String(status).padStart(3))} ${c.dim(actor.name.padEnd(10))} ${method.padEnd(6)} ${apiPath}`);
   }
   return { status, json };
 }

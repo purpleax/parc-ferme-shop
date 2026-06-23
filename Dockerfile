@@ -5,19 +5,19 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ ./
-# Optional Fastly Bot Management embedded-challenge config, baked in at build time.
-# Two ways to set it, either works:
-#   1) create client/.env with VITE_FASTLY_CHALLENGE_FILE=<your-filename>.js
-#   2) pass --build-arg VITE_FASTLY_CHALLENGE_FILE=<your-filename>.js
-# (Only the filename is needed — the universal prefix is built in. A full-path
-# override, VITE_FASTLY_CHALLENGE_PATH, is also supported.) A non-empty build-arg
-# takes precedence; otherwise client/.env is used. We must NOT set empty ENVs
-# here — that would shadow the client/.env file at build.
+# Optional Fastly Bot Management config, baked in at build time.
+# Two ways to set each var, either works:
+#   1) create client/.env with VITE_FASTLY_ACSD_FILE=script.js (and/or CHALLENGE_FILE)
+#   2) pass --build-arg VITE_FASTLY_ACSD_FILE=script.js (and/or CHALLENGE_FILE)
+# A non-empty build-arg takes precedence; otherwise client/.env is used.
+# We must NOT set empty ENVs here — that would shadow the client/.env file at build.
+ARG VITE_FASTLY_ACSD_FILE=""
 ARG VITE_FASTLY_CHALLENGE_FILE=""
 ARG VITE_FASTLY_CHALLENGE_PATH=""
 ARG VITE_FASTLY_CHALLENGE_FAILOPEN=""
 ARG VITE_FASTLY_CHALLENGE_DISABLED=""
-RUN if [ -n "$VITE_FASTLY_CHALLENGE_FILE" ]; then export VITE_FASTLY_CHALLENGE_FILE="$VITE_FASTLY_CHALLENGE_FILE"; else unset VITE_FASTLY_CHALLENGE_FILE; fi; \
+RUN if [ -n "$VITE_FASTLY_ACSD_FILE" ]; then export VITE_FASTLY_ACSD_FILE="$VITE_FASTLY_ACSD_FILE"; else unset VITE_FASTLY_ACSD_FILE; fi; \
+    if [ -n "$VITE_FASTLY_CHALLENGE_FILE" ]; then export VITE_FASTLY_CHALLENGE_FILE="$VITE_FASTLY_CHALLENGE_FILE"; else unset VITE_FASTLY_CHALLENGE_FILE; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_PATH" ]; then export VITE_FASTLY_CHALLENGE_PATH="$VITE_FASTLY_CHALLENGE_PATH"; else unset VITE_FASTLY_CHALLENGE_PATH; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_FAILOPEN" ]; then export VITE_FASTLY_CHALLENGE_FAILOPEN="$VITE_FASTLY_CHALLENGE_FAILOPEN"; else unset VITE_FASTLY_CHALLENGE_FAILOPEN; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_DISABLED" ]; then export VITE_FASTLY_CHALLENGE_DISABLED="$VITE_FASTLY_CHALLENGE_DISABLED"; else unset VITE_FASTLY_CHALLENGE_DISABLED; fi; \

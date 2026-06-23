@@ -103,6 +103,33 @@ export const challengeFailOpen = (env.VITE_FASTLY_CHALLENGE_FAILOPEN ?? 'true').
 // releasing the soft gate so a Fastly asset hiccup can't lock users out.
 export const CHALLENGE_TIMEOUT_MS = 8000;
 
+// Advanced Client-Side Detection (ACSD) — passive headless browser detection.
+//
+// Unlike the embedded challenge, ACSD is injected directly into <head> at build
+// time by the Vite fastlyAcsdPlugin (vite.config.ts) and runs on every page load
+// without any DOM element, gating, or user-visible badge.
+//
+// URL shape: <prefix>assets/<filename>, e.g.
+//   /_fs-ch-1T1wmsGaOgGaSxcX/assets/script.js
+//
+// Configure via VITE_FASTLY_ACSD_FILE (just the filename). Dormant when unset.
+//
+// Kill-switch note: only the BUILD-TIME kill switch (VITE_FASTLY_CHALLENGE_DISABLED=true)
+// suppresses ACSD — the script is baked into the HTML before runtime JS can run.
+// The runtime kill switches (window.FASTLY_CHALLENGE_DISABLED, ?fastlychallenge=off)
+// do NOT affect it.
+function resolveAcsdPath(): string {
+  if (challengeKilled) return '';
+  const file = (env.VITE_FASTLY_ACSD_FILE ?? '').trim();
+  if (!file) return '';
+  const rawPrefix = (env.VITE_FASTLY_CHALLENGE_PREFIX ?? DEFAULT_CHALLENGE_PREFIX).trim();
+  const prefix = rawPrefix.endsWith('/') ? rawPrefix : `${rawPrefix}/`;
+  return `${prefix}assets/${file.replace(/^\/+/, '')}`;
+}
+
+export const acsdPath = resolveAcsdPath();
+export const acsdConfigured = acsdPath.length > 0;
+
 export type ChallengeStatus =
   | 'inactive' // feature not configured
   | 'started'

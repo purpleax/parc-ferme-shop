@@ -1,6 +1,67 @@
-# Fastly Bot Management — embedded client challenges
+# Fastly Bot Management — client-side integrations
 
-This store integrates [Fastly Bot Management embedded client
+This store supports two complementary Fastly Bot Management client-side features:
+
+| Feature | What it does | User-visible |
+|---|---|---|
+| **Advanced Client-Side Detection (ACSD)** | Passive headless-browser detection on every page load | No |
+| **Embedded Client Challenges** | Interactive challenge/CAPTCHA gating on critical actions | Yes |
+
+Both are dormant until configured, and can run independently or together.
+
+---
+
+## Advanced Client-Side Detection (ACSD)
+
+Integrates [Fastly Advanced Client-Side Detections](https://www.fastly.com/documentation/guides/security/bot-management/using-advanced-client-side-detections/)
+— a lightweight passive detection script that runs on every page load.
+
+**How it works:** the script (injected into `<head>` above all other scripts) executes
+lightweight JavaScript to detect headless Chrome and similar automation tools. It sets
+a `_fs_cd_cp_` cookie from your domain, which Fastly uses to populate WAF signals:
+
+- `SUSPECTED-BOT.HEADLESS`
+- `SUSPECTED-BAD-BOT.HEADLESS`
+- `CLIENTSIDE-COOKIE-VALID`
+
+No DOM element, no gating, no user-visible badge — purely passive.
+
+### Configuration
+
+Set a single env var (build-time, Vite):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VITE_FASTLY_ACSD_FILE` | *(empty)* | The script filename you chose in Fastly, e.g. `script.js`. Empty = dormant. |
+
+The script URL is `/_fs-ch-1T1wmsGaOgGaSxcX/assets/<filename>`. The `assets/` subdirectory
+and the universal prefix are built in — only the filename is yours to choose.
+
+```bash
+# Enable ACSD locally:
+echo 'VITE_FASTLY_ACSD_FILE=script.js' >> client/.env.local
+npm run dev
+```
+
+### Kill switch
+
+Only the **build-time** kill switch applies to ACSD: `VITE_FASTLY_CHALLENGE_DISABLED=true`.
+Because ACSD is baked into `index.html` at build time (via the Vite plugin), the runtime
+kill switches (`window.FASTLY_CHALLENGE_DISABLED`, `?fastlychallenge=off`) take effect too
+late to suppress it.
+
+### Implementation
+
+The `fastlyAcsdPlugin()` in `client/vite.config.ts` uses Vite's `transformIndexHtml` with
+`injectTo: 'head-prepend'` to insert `<script src="...assets/script.js" data-fastly-acsd>` 
+as the first element of `<head>` at build time — satisfying Fastly's requirement that it
+run above all other scripts.
+
+---
+
+## Embedded Client Challenges
+
+This store also integrates [Fastly Bot Management embedded client
 challenges](https://www.fastly.com/documentation/guides/security/bot-management/client-challenges/embedding-challenges-in-pages/)
 to verify a real device before the most abuse-prone actions, and surfaces a
 discreet **"Verified by Fastly Bot Management"** badge in the storefront design.
@@ -60,11 +121,12 @@ Build-time environment variables (Vite). See [`client/.env.example`](../client/.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VITE_FASTLY_CHALLENGE_FILE` | *(empty)* | The challenge script **filename** you chose, e.g. `challenge.js`. Empty = integration dormant. **This is normally the only one you set.** |
-| `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | Full path override; wins over `FILE`. Only needed for a non-standard URL. A bare filename here is auto-prefixed too, and any value is forced root-absolute so the script can never load page-relative (e.g. `/product/challenge.js`). |
-| `VITE_FASTLY_CHALLENGE_PREFIX` | `/_fs-ch-1T1wmsGaOgGaSxcX/` | The universal prefix. Override only if Fastly ever changes it. |
-| `VITE_FASTLY_CHALLENGE_FAILOPEN` | `true` | `false` keeps actions gated if the challenge script can't load. Default fails open after ~8s so a Fastly asset hiccup can't lock customers out. |
-| `VITE_FASTLY_CHALLENGE_DISABLED` | *(empty)* | **Kill switch.** `true` fully disables the challenge (no `challenge.js`, no badge, no gating) even if a filename is set. See below. |
+| `VITE_FASTLY_ACSD_FILE` | *(empty)* | **ACSD** script filename, e.g. `script.js`. Empty = ACSD dormant. |
+| `VITE_FASTLY_CHALLENGE_FILE` | *(empty)* | **Embedded challenge** script filename, e.g. `challenge.js`. Empty = challenge dormant. **This is normally the only one you set for challenges.** |
+| `VITE_FASTLY_CHALLENGE_PATH` | *(empty)* | Full path override for the embedded challenge; wins over `FILE`. Only needed for a non-standard URL. |
+| `VITE_FASTLY_CHALLENGE_PREFIX` | `/_fs-ch-1T1wmsGaOgGaSxcX/` | The universal prefix. Shared by both ACSD and embedded challenge. Override only if Fastly ever changes it. |
+| `VITE_FASTLY_CHALLENGE_FAILOPEN` | `true` | `false` keeps actions gated if the embedded challenge script can't load. Default fails open after ~8s. |
+| `VITE_FASTLY_CHALLENGE_DISABLED` | *(empty)* | **Kill switch.** `true` fully disables both ACSD and the embedded challenge (no scripts loaded, no badge, no gating). |
 
 ### Kill switch
 

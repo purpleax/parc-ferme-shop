@@ -63,6 +63,12 @@ function Navbar() {
             <NavLink to="/shop?sort=newest" className={() => 'text-sm text-muted transition hover:text-snow'}>
               New arrivals
             </NavLink>
+            <NavLink to="/information" className={navLink}>
+              F1 history
+            </NavLink>
+            <NavLink to="/about" className={navLink}>
+              About
+            </NavLink>
             {user?.role === 'admin' && (
               <NavLink to="/admin" className={navLink}>
                 Admin
@@ -132,6 +138,12 @@ function Navbar() {
           <div className="mt-4 flex flex-col gap-3">
             <Link to="/shop" onClick={() => setMenuOpen(false)} className="text-sm font-medium">
               The vault
+            </Link>
+            <Link to="/information" onClick={() => setMenuOpen(false)} className="text-sm">
+              F1 history
+            </Link>
+            <Link to="/about" onClick={() => setMenuOpen(false)} className="text-sm">
+              About
             </Link>
             {user ? (
               <>
@@ -222,6 +234,8 @@ function Footer() {
           <ul className="mt-3 space-y-2 text-sm">
             <li><Link className="transition hover:text-accent" to="/shop">The vault</Link></li>
             <li><Link className="transition hover:text-accent" to="/shop?sort=newest">New arrivals</Link></li>
+            <li><Link className="transition hover:text-accent" to="/information">F1 history</Link></li>
+            <li><Link className="transition hover:text-accent" to="/about">About</Link></li>
             <li><Link className="transition hover:text-accent" to="/account/orders">My orders</Link></li>
             <li><a className="transition hover:text-accent" href="/api/docs" target="_blank" rel="noreferrer">API docs</a></li>
           </ul>

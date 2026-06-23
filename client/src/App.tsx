@@ -13,6 +13,8 @@ import { Checkout } from './pages/Checkout';
 import { OrderConfirmation } from './pages/OrderConfirmation';
 import { AccountOrders } from './pages/AccountOrders';
 import { Login, Register } from './pages/Auth';
+import { Information } from './pages/Information';
+import { About } from './pages/About';
 import { NotFound } from './pages/NotFound';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/Dashboard';
@@ -72,6 +74,8 @@ export default function App() {
                     </RequireAuth>
                   }
                 />
+                <Route path="/information" element={<Information />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="*" element={<NotFound />} />

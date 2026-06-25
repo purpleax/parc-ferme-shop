@@ -103,21 +103,23 @@ describe('catalog', () => {
 });
 
 describe('cache control', () => {
-  it('marks admin responses no-store (never cacheable at the edge)', async () => {
+  // `private` is what makes Fastly's default VCL bypass its cache; `no-store`
+  // covers browser/intermediary caches.
+  it('marks admin responses private + no-store (never cacheable at the edge)', async () => {
     const res = await request(app).get('/api/admin/products').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['cache-control']).toBe('private, no-store');
   });
 
-  it('marks authenticated responses no-store', async () => {
+  it('marks authenticated responses private + no-store', async () => {
     const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${customerToken}`);
-    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['cache-control']).toBe('private, no-store');
   });
 
-  it('leaves the public catalogue cacheable (no no-store)', async () => {
+  it('leaves the public catalogue cacheable', async () => {
     const res = await request(app).get('/api/products');
     expect(res.status).toBe(200);
-    expect(res.headers['cache-control']).not.toBe('no-store');
+    expect(res.headers['cache-control']).toBeUndefined();
   });
 });
 

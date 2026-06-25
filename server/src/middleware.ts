@@ -97,13 +97,18 @@ export function attachUser(req: Request, _res: Response, next: NextFunction) {
 // "doesn't save" because the refetch is served from cache. Public catalogue
 // GETs are left cacheable on purpose (CDN cache-hit-ratio demos). Mount under
 // `/api`, so req.path here is the route without the `/api` prefix.
+//
+// `private` is deliberate alongside `no-store`: Fastly's default VCL ignores
+// `no-store` (no max-age → falls back to default_ttl and caches it), but it
+// passes on `private` — so `private` is what actually stops the edge caching,
+// while `no-store` covers browser/intermediary caches.
 const NO_STORE_PREFIXES = ['/admin', '/auth', '/cart', '/orders', '/payments'];
 
 export function apiCacheControl(req: Request, res: Response, next: NextFunction) {
   const isMutation = req.method !== 'GET' && req.method !== 'HEAD';
   const isSensitivePath = NO_STORE_PREFIXES.some((p) => req.path.startsWith(p));
   if (req.user || isMutation || isSensitivePath) {
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'private, no-store');
   }
   next();
 }

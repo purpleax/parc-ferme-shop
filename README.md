@@ -95,8 +95,10 @@ Design decisions that matter for a security demo:
   edge-side rate-limiting and bot-management demos.
 - **Cache-aware responses:** per-user and mutating API responses (`/api/admin/*`,
   `/api/auth/*`, `/api/cart/*`, `/api/orders/*`, `/api/payments/*`, and anything
-  authenticated) are sent `Cache-Control: no-store` so a CDN never serves stale or
-  cross-user data. The public catalogue is deliberately left cacheable.
+  authenticated) are sent `Cache-Control: private, no-store` so a CDN never serves
+  stale or cross-user data. (`private` is what Fastly's default VCL acts on — it
+  ignores a bare `no-store` and falls back to its default TTL.) The public
+  catalogue is deliberately left cacheable.
 - **Cacheable image endpoint:** `/api/images/products/{seed}.jpg` serves real
   product photography and `/api/images/products/{seed}.svg` generates deterministic
   fallback art — both with `Cache-Control: public, max-age=86400, immutable`, ideal

@@ -93,6 +93,10 @@ Design decisions that matter for a security demo:
 - **Rate limiting is handled at the edge** (Fastly), not in the app — the API
   applies no request throttling of its own, keeping the origin a clean target for
   edge-side rate-limiting and bot-management demos.
+- **Cache-aware responses:** per-user and mutating API responses (`/api/admin/*`,
+  `/api/auth/*`, `/api/cart/*`, `/api/orders/*`, `/api/payments/*`, and anything
+  authenticated) are sent `Cache-Control: no-store` so a CDN never serves stale or
+  cross-user data. The public catalogue is deliberately left cacheable.
 - **Cacheable image endpoint:** `/api/images/products/{seed}.jpg` serves real
   product photography and `/api/images/products/{seed}.svg` generates deterministic
   fallback art — both with `Cache-Control: public, max-age=86400, immutable`, ideal

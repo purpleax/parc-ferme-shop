@@ -5,6 +5,7 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config.js';
 import {
+  apiCacheControl,
   apiNotFound,
   attachUser,
   errorHandler,
@@ -34,6 +35,10 @@ export function createApp() {
   // API docs
   app.get('/api/openapi.json', (_req, res) => res.json(openapiSpec));
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, { customSiteTitle: 'Parc Fermé API' }));
+
+  // Mark per-user / mutating API responses non-cacheable (before routes, so it
+  // applies to all of them). Public catalogue GETs stay cacheable.
+  app.use('/api', apiCacheControl);
 
   // Images are cacheable (CDN demo traffic).
   app.use('/api/images', imagesRouter);

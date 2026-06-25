@@ -90,6 +90,24 @@ export function attachUser(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
+// ---------- Cache control ----------
+
+// Per-user and mutating API responses must never be cached by a CDN (Fastly),
+// or an edge HIT serves stale/cross-user data — e.g. an admin stock edit that
+// "doesn't save" because the refetch is served from cache. Public catalogue
+// GETs are left cacheable on purpose (CDN cache-hit-ratio demos). Mount under
+// `/api`, so req.path here is the route without the `/api` prefix.
+const NO_STORE_PREFIXES = ['/admin', '/auth', '/cart', '/orders', '/payments'];
+
+export function apiCacheControl(req: Request, res: Response, next: NextFunction) {
+  const isMutation = req.method !== 'GET' && req.method !== 'HEAD';
+  const isSensitivePath = NO_STORE_PREFIXES.some((p) => req.path.startsWith(p));
+  if (req.user || isMutation || isSensitivePath) {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+  next();
+}
+
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   if (!req.user) return next(unauthorized());
   next();

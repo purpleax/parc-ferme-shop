@@ -16,9 +16,6 @@ services:
     environment:
       # Override for your environment as needed.
       JWT_SECRET: change-me-for-your-demo
-      RATE_LIMIT_GENERAL: "300"
-      RATE_LIMIT_AUTH: "20"
-      RATE_LIMIT_NEWSLETTER: "10"
     volumes:
       # Persist the SQLite database between restarts. Remove the volume
       # (docker compose down -v) to reset to fresh seed data.

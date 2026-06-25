@@ -27,9 +27,8 @@
  *   --verbose        log every request line
  *   --quiet          suppress the periodic status line
  *
- * Note: many virtual users from one IP can trip the general rate limit
- * (300/min by default). That's realistic and fine to demo; raise it with
- * RATE_LIMIT_GENERAL=2000 on the server for heavier runs.
+ * Note: the API itself does no rate limiting — that is handled at the edge
+ * by Fastly. Heavy runs from one IP may be throttled/blocked there.
  */
 
 // ----------------------------- config -----------------------------

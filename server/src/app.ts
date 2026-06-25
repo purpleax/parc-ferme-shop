@@ -8,7 +8,6 @@ import {
   apiNotFound,
   attachUser,
   errorHandler,
-  generalLimiter,
   requestId,
   requestLogger,
 } from './middleware.js';
@@ -26,7 +25,7 @@ export function createApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // behind CDN/WAF in demos
 
-  app.use(cors({ origin: true, exposedHeaders: ['X-Request-Id', 'RateLimit-Limit', 'RateLimit-Remaining'] }));
+  app.use(cors({ origin: true, exposedHeaders: ['X-Request-Id'] }));
   app.use(express.json({ limit: '100kb' }));
   app.use(requestId);
   app.use(attachUser);
@@ -36,10 +35,9 @@ export function createApp() {
   app.get('/api/openapi.json', (_req, res) => res.json(openapiSpec));
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, { customSiteTitle: 'Parc Fermé API' }));
 
-  // Images are cacheable and exempt from the general limiter (CDN demo traffic).
+  // Images are cacheable (CDN demo traffic).
   app.use('/api/images', imagesRouter);
 
-  app.use('/api', generalLimiter);
   app.use('/api', miscRouter);
   app.use('/api/auth', authRouter);
   app.use('/api', catalogRouter);

@@ -24,8 +24,9 @@ scenarios. Nothing is real — no real products, payments or personal data.
 - **server/** — Node + Express 4 + TypeScript, run with **tsx** (tsx is a runtime
   dependency, not dev — needed in the Docker image). SQLite via the **built-in
   `node:sqlite`** module (no native build; requires Node ≥ 22.5). Zod validation,
-  JWT auth (bcrypt), tiered rate limits, `X-Request-Id` tracing, structured JSON
-  request logging, Swagger UI at `/api/docs`. ~30 REST endpoints.
+  JWT auth (bcrypt), `X-Request-Id` tracing, structured JSON request logging,
+  Swagger UI at `/api/docs`. ~30 REST endpoints. Rate limiting is handled at the
+  edge by Fastly, not in the app.
 - **Payments** are fully mocked (Luhn-checked test cards; card data discarded).
 - Single-container Docker (API serves the built client) — added last, works.
 
@@ -58,7 +59,7 @@ container (must be running).
 
 | Script | Purpose |
 |---|---|
-| `scripts/demo.mjs` (`npm run demo`) | End-to-end API correctness smoke test; exits non-zero on unexpected responses. `--flood` shows 429s. |
+| `scripts/demo.mjs` (`npm run demo`) | End-to-end API correctness smoke test; exits non-zero on unexpected responses. |
 | `scripts/simulate.mjs` (`npm run simulate`) | Multi-user traffic generator (shoppers + admin) for API-discovery/WAF demos; prints per-endpoint coverage. Node HTTP client — does NOT load the frontend. |
 | `scripts/fetch-images.mjs` (`npm run fetch-images`) | One-time downloader of openly-licensed F1 photos from Wikimedia Commons into `server/public/products/`; attribution in `sources.json`. |
 | `server/src/spec-cli.ts` (`npm run spec`) | Exports the OpenAPI spec to static `server/openapi.json` + `server/openapi.yaml`. |

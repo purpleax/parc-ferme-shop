@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import rateLimit from 'express-rate-limit';
 import type { z, ZodSchema } from 'zod';
 import { config } from './config.js';
 import { ApiError, badRequest, forbidden, unauthorized } from './errors.js';
@@ -124,26 +123,6 @@ export function parse<S extends ZodSchema>(schema: S, data: unknown): z.infer<S>
   }
   return result.data;
 }
-
-// ---------- Rate limiting ----------
-
-const limiterDefaults = {
-  standardHeaders: true as const,
-  legacyHeaders: false,
-  handler: (req: Request, res: Response) => {
-    res.status(429).json({
-      error: {
-        code: 'RATE_LIMITED',
-        message: 'Too many requests. Please slow down and try again shortly.',
-        requestId: req.id,
-      },
-    });
-  },
-};
-
-export const generalLimiter = rateLimit({ ...limiterDefaults, ...config.rateLimits.general });
-export const authLimiter = rateLimit({ ...limiterDefaults, ...config.rateLimits.auth });
-export const newsletterLimiter = rateLimit({ ...limiterDefaults, ...config.rateLimits.newsletter });
 
 // ---------- Error handling ----------
 

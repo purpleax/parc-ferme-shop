@@ -313,16 +313,6 @@
                 }
               }
             }
-          },
-          "429": {
-            "description": "Rate limited",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         }
       }
@@ -370,16 +360,6 @@
           },
           "401": {
             "description": "Invalid credentials",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
@@ -1205,7 +1185,7 @@
         "tags": [
           "Marketing"
         ],
-        "summary": "Subscribe to the newsletter (strictly rate limited — good bot demo target)",
+        "summary": "Subscribe to the newsletter (bot demo target — rate limiting enforced at the edge)",
         "requestBody": {
           "required": true,
           "content": {
@@ -1230,16 +1210,6 @@
           },
           "409": {
             "description": "Already subscribed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {

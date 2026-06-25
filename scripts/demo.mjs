@@ -4,12 +4,10 @@
  * Exercises the key endpoints end-to-end against a running server.
  *
  *   node scripts/demo.mjs                # full happy-path + error scenarios
- *   node scripts/demo.mjs --flood        # also fire 15 rapid requests to show 429s
  *   API_URL=http://localhost:4000 node scripts/demo.mjs
  */
 
 const BASE = process.env.API_URL ?? 'http://localhost:4000';
-const FLOOD = process.argv.includes('--flood');
 
 const green = (s) => `\x1b[32m${s}\x1b[0m`;
 const red = (s) => `\x1b[31m${s}\x1b[0m`;
@@ -138,22 +136,6 @@ const created = await call('POST', '/admin/products', {
   body: { name: `Demo Team Cap ${Date.now()}`, description: 'Created by demo script', priceCents: 2900, categoryId: 1, stock: 10 },
 });
 await call('DELETE', `/admin/products/${created.product.id}`, { token: adminToken });
-
-if (FLOOD) {
-  banner('Bot demo — flooding /api/newsletter (expect 429s)');
-  const results = await Promise.all(
-    Array.from({ length: 15 }, (_, i) =>
-      fetch(`${BASE}/api/newsletter`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: `bot-${Date.now()}-${i}@flood.dev` }),
-      }).then((r) => r.status)
-    )
-  );
-  const counts = results.reduce((acc, s) => ((acc[s] = (acc[s] ?? 0) + 1), acc), {});
-  console.log(`    statuses: ${JSON.stringify(counts)} ${counts['429'] ? green('— rate limiting works ✔') : red('— expected some 429s!')}`);
-  if (!counts['429']) process.exitCode = 1;
-}
 
 console.log(
   process.exitCode

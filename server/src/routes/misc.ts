@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db.js';
 import { conflict } from '../errors.js';
-import { parse, newsletterLimiter } from '../middleware.js';
+import { parse } from '../middleware.js';
 
 const router = Router();
 
@@ -19,12 +19,12 @@ router.get('/health', (_req, res) => {
   });
 });
 
-// Classic bot-attractive endpoint: strict rate limit makes 429s easy to demo.
+// Classic bot-attractive endpoint (rate limiting handled at the edge by Fastly).
 const newsletterSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email address'),
 });
 
-router.post('/newsletter', newsletterLimiter, (req, res) => {
+router.post('/newsletter', (req, res) => {
   const body = parse(newsletterSchema, req.body);
   const existing = db.prepare('SELECT id FROM newsletter_subscribers WHERE email = ?').get(body.email);
   if (existing) throw conflict('ALREADY_SUBSCRIBED', 'This email is already subscribed');

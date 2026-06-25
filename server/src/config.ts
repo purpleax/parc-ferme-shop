@@ -12,10 +12,4 @@ export const config = {
   logFile: process.env.LOG_FILE ?? path.join(__dirname, '..', 'logs', 'api.log'),
   photosDir: process.env.PHOTOS_DIR ?? path.join(__dirname, '..', 'public', 'products'),
   clientDist: path.join(__dirname, '..', '..', 'client', 'dist'),
-  rateLimits: {
-    // Generous general limit; strict limits on bot-attractive endpoints.
-    general: { windowMs: 60_000, limit: Number(process.env.RATE_LIMIT_GENERAL ?? 300) },
-    auth: { windowMs: 60_000, limit: Number(process.env.RATE_LIMIT_AUTH ?? 20) },
-    newsletter: { windowMs: 60_000, limit: Number(process.env.RATE_LIMIT_NEWSLETTER ?? 10) },
-  },
 };

@@ -71,7 +71,6 @@ derive brand + last4, and **immediately discarded** — it is never stored or lo
                                │  • structured request logging   │
                                │  • JWT auth (bcrypt hashes)     │
                                │  • Zod validation everywhere    │
-                               │  • express-rate-limit tiers     │
                                │  • Swagger UI at /api/docs      │
                                └───────────────┬─────────────────┘
                                                │ node:sqlite (built-in)
@@ -91,15 +90,15 @@ Design decisions that matter for a security demo:
 - **Logging:** every API request is logged as a console line *and* a JSON line in
   `server/logs/api.log` (timestamp, request id, method, path, status, duration,
   ip, user id, role, user-agent) — easy to tail during demos or ship to a SIEM.
-- **Rate-limit tiers:** general `/api` 300/min, `/api/auth/*` 20/min,
-  `/api/newsletter` 10/min (an intentionally bot-attractive endpoint). 429s use
-  the standard `RateLimit-*` headers. Tune via env vars (below).
+- **Rate limiting is handled at the edge** (Fastly), not in the app — the API
+  applies no request throttling of its own, keeping the origin a clean target for
+  edge-side rate-limiting and bot-management demos.
 - **Cacheable image endpoint:** `/api/images/products/{seed}.jpg` serves real
   product photography and `/api/images/products/{seed}.svg` generates deterministic
   fallback art — both with `Cache-Control: public, max-age=86400, immutable`, ideal
   for demonstrating CDN cache hit ratios.
 - **Consistent error envelope:** `{ "error": { "code", "message", "details?",
-  "requestId" } }` with realistic status codes (400/401/402/403/404/409/429).
+  "requestId" } }` with realistic status codes (400/401/402/403/404/409).
 - **Safe by default:** parameterised SQL everywhere, bcrypt password hashes, JWT
   with server-side role checks on every admin route, strict input validation,
   soft deletes, no intentional vulnerabilities.
@@ -136,7 +135,7 @@ Admins progress orders through `paid → shipped → delivered` (or `cancelled`)
 │   │   ├── config.ts       # env-driven configuration
 │   │   ├── db.ts           # node:sqlite wrapper + schema migration
 │   │   ├── seed.ts         # demo catalogue, users, orders
-│   │   ├── middleware.ts   # requestId, logging, auth, validation, rate limits
+│   │   ├── middleware.ts   # requestId, logging, auth, validation
 │   │   ├── errors.ts       # ApiError + helpers
 │   │   ├── openapi.ts      # OpenAPI spec source of truth (served at /api/docs)
 │   │   ├── spec-cli.ts     # exports openapi.ts → openapi.json + openapi.yaml
@@ -173,8 +172,8 @@ npm run spec      # writes server/openapi.json and server/openapi.yaml
 | Method & path | Auth | Purpose |
 |---|---|---|
 | `GET /api/health` | — | Service health + seed status |
-| `POST /api/auth/register` | — | Create customer account (rate limited) |
-| `POST /api/auth/login` | — | Get JWT (rate limited) |
+| `POST /api/auth/register` | — | Create customer account |
+| `POST /api/auth/login` | — | Get JWT |
 | `GET /api/auth/me` | JWT | Current user |
 | `GET /api/categories` | — | Categories with product counts |
 | `GET /api/products` | — | List/search/filter/sort/paginate products |
@@ -189,7 +188,7 @@ npm run spec      # writes server/openapi.json and server/openapi.yaml
 | `GET /api/orders` · `GET /api/orders/{id}` | JWT | Order history / detail (ownership enforced) |
 | `POST /api/payments/intent` | JWT | Create mock payment intent |
 | `POST /api/payments/{id}/confirm` | JWT | Confirm with mock card (402 on decline) |
-| `POST /api/newsletter` | — | Subscribe (strict rate limit — bot demo target) |
+| `POST /api/newsletter` | — | Subscribe (bot demo target — rate limited at the edge) |
 | `GET /api/admin/stats` | admin | Dashboard metrics |
 | `GET/POST /api/admin/products` · `PUT/DELETE /api/admin/products/{id}` | admin | Product management (soft delete) |
 | `GET /api/admin/orders[?status=]` · `GET/PATCH /api/admin/orders/{id}` | admin | Order viewing + status updates |
@@ -220,11 +219,6 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:4000/api/admin/stats
 curl -X POST http://localhost:4000/api/newsletter \
   -H 'Content-Type: application/json' -d '{"email":"junk"}'
 
-# Trip the newsletter rate limit (429s after 10/min)
-for i in $(seq 1 15); do curl -s -o /dev/null -w '%{http_code}\n' \
-  -X POST http://localhost:4000/api/newsletter \
-  -H 'Content-Type: application/json' -d "{\"email\":\"bot$i@x.dev\"}"; done
-
 # Cacheable image (CDN demo)
 curl -sI http://localhost:4000/api/images/products/monaco-hairpin-fine-art-print.jpg | grep -i cache
 ```
@@ -248,7 +242,6 @@ Re-running the seed **resets everything** to this state — handy between demos.
 npm test                  # server API tests (31) + client smoke tests (2)
 npm run test --prefix server   # just the API tests (in-memory DB, no setup needed)
 npm run demo              # live end-to-end script against a RUNNING server
-npm run demo -- --flood   # …plus a rate-limit flood that expects 429s
 ```
 
 The demo script walks the entire customer journey (browse → register/login →
@@ -289,10 +282,9 @@ API_URL=https://demo.example.com npm run simulate   # point at any deployment
 | `--verbose` | off | Log every request line |
 | `--quiet` | off | Suppress the periodic status line |
 
-Ctrl-C stops early and still prints the coverage report. **Heads-up:** many virtual
-users from one IP can trip the default rate limits (300/min general, 20/min auth) —
-that's realistic and fine to observe, but for sustained high-volume runs raise them
-on the server, e.g. `RATE_LIMIT_GENERAL=5000 RATE_LIMIT_AUTH=5000 npm run dev`.
+Ctrl-C stops early and still prints the coverage report. **Heads-up:** the API does
+no rate limiting of its own — that's handled at the edge by Fastly, so sustained
+high-volume runs from one IP may be throttled or blocked there.
 
 ## 6. Configuration
 
@@ -302,9 +294,6 @@ on the server, e.g. `RATE_LIMIT_GENERAL=5000 RATE_LIMIT_AUTH=5000 npm run dev`.
 | `JWT_SECRET` | dev value | Set your own for any shared environment |
 | `DATABASE_PATH` | `server/data/store.db` | `:memory:` used by tests |
 | `LOG_FILE` | `server/logs/api.log` | JSON request log |
-| `RATE_LIMIT_GENERAL` | `300` /min | General `/api` limiter |
-| `RATE_LIMIT_AUTH` | `20` /min | Login/register limiter |
-| `RATE_LIMIT_NEWSLETTER` | `10` /min | Bot-demo endpoint limiter |
 
 ## 7. Docker (only after local verification)
 
@@ -336,7 +325,7 @@ and the cacheable image endpoint are all served from that one origin.
 3. `npm test` → 31 server tests + 2 client tests pass.
 4. `npm run dev` → banner shows the API on :4000; open http://localhost:5173 —
    you should see the dark “OWN THE APEX” hero with animated speed streaks.
-5. `npm run demo -- --flood` (in a second terminal) → ends with
+5. `npm run demo` (in a second terminal) → ends with
    “✔ All demo scenarios behaved as expected.”
 6. In the browser: add a product to the garage → checkout as `ava@demo.dev` →
    pay with `4242 4242 4242 4242` → confirmation page shows a `PF-…` order.
@@ -350,7 +339,6 @@ and the cacheable image endpoint are all served from that one origin.
 | `npm run seed` fails with `Cannot find module 'node:sqlite'` | Node is older than 22.5. Install Node 22+ (`brew install node` / nvm). |
 | Frontend loads but products never appear; console shows proxy errors | API isn't running. Start `npm run dev:api`, check http://localhost:4000/api/health. |
 | `EADDRINUSE: 4000` or `5173` | Another process owns the port: `lsof -i :4000` then kill it, or set `PORT=4001` (and update `client/vite.config.ts` proxy). |
-| Login returns 429 | You tripped the auth rate limit (20/min) during testing. Wait a minute or raise `RATE_LIMIT_AUTH`. |
 | Payment always declines | You're using a decline test card. Use `4242 4242 4242 4242` with a **future** expiry. |
 | “Cart not found” after restarting with a re-seed | The browser kept an old cart id. The app auto-recovers on next add-to-cart; or clear the site's localStorage. |
 | Data looks messy after experimenting | `npm run seed` resets everything to pristine demo state. |

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { db } from '../db.js';
 import { conflict, invalidCredentials, notFound } from '../errors.js';
-import { parse, requireAuth, signToken, authLimiter } from '../middleware.js';
+import { parse, requireAuth, signToken } from '../middleware.js';
 import type { AuthUser } from '../types.js';
 
 const router = Router();
@@ -41,7 +41,7 @@ const publicUser = (u: UserRow) => ({
   createdAt: u.created_at,
 });
 
-router.post('/register', authLimiter, (req, res) => {
+router.post('/register', (req, res) => {
   const body = parse(registerSchema, req.body);
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(body.email);
   if (existing) throw conflict('EMAIL_TAKEN', 'An account with this email already exists');
@@ -55,7 +55,7 @@ router.post('/register', authLimiter, (req, res) => {
   res.status(201).json({ token, user: publicUser(user) });
 });
 
-router.post('/login', authLimiter, (req, res) => {
+router.post('/login', (req, res) => {
   const body = parse(loginSchema, req.body);
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(body.email) as UserRow | undefined;
   if (!user || !bcrypt.compareSync(body.password, user.password_hash)) {

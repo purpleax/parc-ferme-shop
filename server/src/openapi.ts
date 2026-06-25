@@ -144,7 +144,6 @@ export const openapiSpec = {
           '201': { description: 'Account created', ...json({ $ref: '#/components/schemas/AuthResponse' }) },
           '400': errorResponse('Validation error'),
           '409': errorResponse('Email already registered'),
-          '429': errorResponse('Rate limited'),
         },
       },
     },
@@ -166,7 +165,6 @@ export const openapiSpec = {
         responses: {
           '200': { description: 'Authenticated', ...json({ $ref: '#/components/schemas/AuthResponse' }) },
           '401': errorResponse('Invalid credentials'),
-          '429': errorResponse('Rate limited'),
         },
       },
     },
@@ -337,9 +335,9 @@ export const openapiSpec = {
     '/api/newsletter': {
       post: {
         tags: ['Marketing'],
-        summary: 'Subscribe to the newsletter (strictly rate limited — good bot demo target)',
+        summary: 'Subscribe to the newsletter (bot demo target — rate limiting enforced at the edge)',
         requestBody: { required: true, ...json({ type: 'object', required: ['email'], properties: { email: { type: 'string' } } }) },
-        responses: { '201': { description: 'Subscribed' }, '409': errorResponse('Already subscribed'), '429': errorResponse('Rate limited') },
+        responses: { '201': { description: 'Subscribed' }, '409': errorResponse('Already subscribed') },
       },
     },
     '/api/admin/stats': {

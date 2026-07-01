@@ -10,6 +10,9 @@ services:
         VITE_FASTLY_CHALLENGE_PATH: "${VITE_FASTLY_CHALLENGE_PATH:-}"
         # Kill switch — set VITE_FASTLY_CHALLENGE_DISABLED=true to fully disable.
         VITE_FASTLY_CHALLENGE_DISABLED: "${VITE_FASTLY_CHALLENGE_DISABLED:-}"
+        # Optional: short git SHA shown in the footer build stamp. Set it inline:
+        #   GIT_SHA=$(git rev-parse --short HEAD) docker compose up --build
+        GIT_SHA: "${GIT_SHA:-}"
     container_name: parc-ferme-store
     ports:
       - "4000:4000"

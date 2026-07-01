@@ -16,7 +16,13 @@ ARG VITE_FASTLY_CHALLENGE_FILE=""
 ARG VITE_FASTLY_CHALLENGE_PATH=""
 ARG VITE_FASTLY_CHALLENGE_FAILOPEN=""
 ARG VITE_FASTLY_CHALLENGE_DISABLED=""
-RUN if [ -n "$VITE_FASTLY_ACSD_FILE" ]; then export VITE_FASTLY_ACSD_FILE="$VITE_FASTLY_ACSD_FILE"; else unset VITE_FASTLY_ACSD_FILE; fi; \
+# Optional build stamp shown in the footer (so you can confirm what's deployed).
+# The .git dir isn't in the build context, so pass the short SHA explicitly:
+#   docker compose build --build-arg GIT_SHA=$(git rev-parse --short HEAD)
+# When unset, the footer still shows the build timestamp.
+ARG GIT_SHA=""
+RUN if [ -n "$GIT_SHA" ]; then export GIT_SHA="$GIT_SHA"; fi; \
+    if [ -n "$VITE_FASTLY_ACSD_FILE" ]; then export VITE_FASTLY_ACSD_FILE="$VITE_FASTLY_ACSD_FILE"; else unset VITE_FASTLY_ACSD_FILE; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_FILE" ]; then export VITE_FASTLY_CHALLENGE_FILE="$VITE_FASTLY_CHALLENGE_FILE"; else unset VITE_FASTLY_CHALLENGE_FILE; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_PATH" ]; then export VITE_FASTLY_CHALLENGE_PATH="$VITE_FASTLY_CHALLENGE_PATH"; else unset VITE_FASTLY_CHALLENGE_PATH; fi; \
     if [ -n "$VITE_FASTLY_CHALLENGE_FAILOPEN" ]; then export VITE_FASTLY_CHALLENGE_FAILOPEN="$VITE_FASTLY_CHALLENGE_FAILOPEN"; else unset VITE_FASTLY_CHALLENGE_FAILOPEN; fi; \

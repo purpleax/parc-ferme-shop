@@ -248,6 +248,9 @@ function Footer() {
       </div>
       <div className="border-t border-line/70 py-5 text-center text-xs text-muted">
         © {new Date().getFullYear()} Parc Fermé — demo environment only · photography via Wikimedia Commons (see sources.json)
+        <span className="mt-1 block text-[10px] text-muted/50">
+          build {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC{__GIT_SHA__ ? ` · ${__GIT_SHA__}` : ''}
+        </span>
       </div>
     </footer>
   );

@@ -5,9 +5,17 @@
  *
  *   node scripts/demo.mjs                # full happy-path + error scenarios
  *   API_URL=http://localhost:4000 node scripts/demo.mjs
+ *   ADMIN_PASSWORD=… node scripts/demo.mjs   # admin creds for a hardened deploy
+ *                                            # (ADMIN_EMAIL too; default the demo values)
  */
 
 const BASE = process.env.API_URL ?? 'http://localhost:4000';
+// Admin credentials default to the dev/test demo values. Override when running
+// against a hardened deployment where the admin password is env-set/random.
+const ADMIN = {
+  email: process.env.ADMIN_EMAIL ?? 'admin@parcferme.dev',
+  password: process.env.ADMIN_PASSWORD ?? 'Admin123!',
+};
 
 const green = (s) => `\x1b[32m${s}\x1b[0m`;
 const red = (s) => `\x1b[31m${s}\x1b[0m`;
@@ -76,6 +84,15 @@ await call('POST', '/auth/login', {
 await call('GET', '/auth/me', { token: customerToken });
 console.log(dim(`    registered ${reg.user?.email}, logged in as ${login.user?.email}`));
 
+banner('Password reset (attempt + failure)');
+// Always 200, even for unknown emails (anti-enumeration); no email is sent.
+await call('POST', '/auth/forgot-password', { body: { email: 'ava@demo.dev' } });
+// A bogus token is rejected (X-Auth-Event: password-reset-failure at the edge).
+await call('POST', '/auth/reset-password', {
+  body: { token: 'not-a-real-token', password: 'BrandNew123' },
+  expect: 400,
+});
+
 banner('Cart');
 const { cart } = await call('POST', '/cart', { expect: 201 });
 const productId = products.items[0].id;
@@ -123,7 +140,7 @@ await call('GET', '/admin/stats', { token: customerToken, expect: 403 });
 
 banner('Admin');
 const adminLogin = await call('POST', '/auth/login', {
-  body: { email: 'admin@parcferme.dev', password: 'Admin123!' },
+  body: { email: ADMIN.email, password: ADMIN.password },
 });
 const adminToken = adminLogin.token;
 const stats = await call('GET', '/admin/stats', { token: adminToken });

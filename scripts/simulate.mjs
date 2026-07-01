@@ -27,6 +27,10 @@
  *   --verbose        log every request line
  *   --quiet          suppress the periodic status line
  *
+ * Env: ADMIN_EMAIL / ADMIN_PASSWORD override the admin persona's credentials
+ * (default the demo values) — needed against a hardened deploy where the admin
+ * password is env-set/random.
+ *
  * Note: the API itself does no rate limiting — that is handled at the edge
  * by Fastly. Heavy runs from one IP may be throttled/blocked there.
  */
@@ -60,7 +64,12 @@ const SEEDED_CUSTOMERS = [
   { email: 'imani@demo.dev', password: 'Customer123!' },
   { email: 'lucas@demo.dev', password: 'Customer123!' },
 ];
-const ADMIN = { email: 'admin@parcferme.dev', password: 'Admin123!' };
+// Admin credentials default to the dev/test demo values. Override when running
+// against a hardened deployment where the admin password is env-set/random.
+const ADMIN = {
+  email: process.env.ADMIN_EMAIL ?? 'admin@parcferme.dev',
+  password: process.env.ADMIN_PASSWORD ?? 'Admin123!',
+};
 const SEARCH_TERMS = ['helmet', 'carbon', 'monaco', 'signed', 'race', 'wing', 'scale', 'wheel', 'spa', 'podium'];
 const SORTS = ['featured', 'price_asc', 'price_desc', 'newest', 'rating'];
 
@@ -107,6 +116,8 @@ const CANONICAL = [
   'GET /api/health',
   'POST /api/auth/register',
   'POST /api/auth/login',
+  'POST /api/auth/forgot-password',
+  'POST /api/auth/reset-password',
   'GET /api/auth/me',
   'GET /api/categories',
   'GET /api/products',
@@ -337,6 +348,19 @@ class Shopper {
       await call(this, 'POST', '/api/newsletter', 'POST /api/newsletter', {
         body: { email: `sim-${Date.now()}-${randInt(1000, 9999)}@news.dev` },
       });
+    }
+    // Occasionally request a password reset (X-Auth-Event: password-reset-attempt),
+    // sometimes following the link with a bogus token (password-reset-failure).
+    // Realistic ATO-signal traffic for the Fastly NGWAF templated rules.
+    if (chance(0.12)) {
+      const email = pick([...SEEDED_CUSTOMERS.map((cust) => cust.email), `nobody-${randInt(1000, 9999)}@sim.dev`]);
+      await call(this, 'POST', '/api/auth/forgot-password', 'POST /api/auth/forgot-password', { body: { email } });
+      if (chance(0.5)) {
+        await think();
+        await call(this, 'POST', '/api/auth/reset-password', 'POST /api/auth/reset-password', {
+          body: { token: `sim-${randInt(100000, 999999)}`, password: 'Password1!' },
+        });
+      }
     }
     if (chance(0.15) && this.cartId) {
       await call(this, 'DELETE', `/api/cart/${this.cartId}`, 'DELETE /api/cart/:cartId');

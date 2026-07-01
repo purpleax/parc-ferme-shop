@@ -12,7 +12,7 @@ import { CartPage } from './pages/CartPage';
 import { Checkout } from './pages/Checkout';
 import { OrderConfirmation } from './pages/OrderConfirmation';
 import { AccountOrders } from './pages/AccountOrders';
-import { Login, Register } from './pages/Auth';
+import { Login, Register, ForgotPassword, ResetPassword } from './pages/Auth';
 import { Information } from './pages/Information';
 import { About } from './pages/About';
 import { NotFound } from './pages/NotFound';
@@ -78,6 +78,8 @@ export default function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="/admin" element={<AdminLayout />}>

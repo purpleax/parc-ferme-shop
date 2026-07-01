@@ -62,7 +62,11 @@ client (`client/dist` if present) → `errorHandler`. All errors flow through `A
   (`parse(schema, data)` throws `ApiError` 400 with field details), rate limiters
   (general / auth / newsletter tiers), the logger, and `asyncHandler` (Express 4 does not
   forward async rejections — async routes must be wrapped; only payment-confirm is async).
-- **Routes** (`routes/`): `auth`, `catalog` (products/categories/search/filter/sort/
+- **Routes** (`routes/`): `auth` (register/login/me + password reset via
+  `forgot-password`/`reset-password`; single-use hashed tokens in
+  `password_reset_tokens`, 30-min expiry, no email — the link is logged. Every auth
+  response sets an **`X-Auth-Event`** header — `login|register|password-reset` ×
+  `attempt|success|failure` — for Fastly NGWAF ATO templated rules), `catalog` (products/categories/search/filter/sort/
   paginate), `images` (serves `server/public/products/*.jpg` real photos, falls back to a
   deterministic generated SVG; both `Cache-Control: max-age=86400, immutable`), `cart`,
   `orders` (orders + mock payments: Luhn check, derive brand/last4, **discard card**,

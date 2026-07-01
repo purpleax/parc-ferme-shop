@@ -180,6 +180,8 @@ npm run spec      # writes server/openapi.json and server/openapi.yaml
 | `GET /api/health` | — | Service health + seed status |
 | `POST /api/auth/register` | — | Create customer account |
 | `POST /api/auth/login` | — | Get JWT |
+| `POST /api/auth/forgot-password` | — | Request a password reset link (always 200; no email sent — link is logged) |
+| `POST /api/auth/reset-password` | — | Reset password with a token |
 | `GET /api/auth/me` | JWT | Current user |
 | `GET /api/categories` | — | Categories with product counts |
 | `GET /api/products` | — | List/search/filter/sort/paginate products |
@@ -199,6 +201,11 @@ npm run spec      # writes server/openapi.json and server/openapi.yaml
 | `GET/POST /api/admin/products` · `PUT/DELETE /api/admin/products/{id}` | admin | Product management (soft delete) |
 | `GET /api/admin/orders[?status=]` · `GET/PATCH /api/admin/orders/{id}` | admin | Order viewing + status updates |
 | `GET /api/admin/customers` · `GET /api/admin/customers/{id}` | admin | Customer viewing |
+
+Every auth response carries an **`X-Auth-Event`** header so an edge WAF (Fastly
+NGWAF ATO templated rules) can key off the origin's outcome: `login-success` /
+`login-failure`, `register-success` / `register-failure`, and
+`password-reset-attempt` / `password-reset-success` / `password-reset-failure`.
 
 ### Example curl commands
 

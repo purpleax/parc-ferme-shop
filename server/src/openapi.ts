@@ -11,6 +11,26 @@ const errorResponse = (description: string) => ({
 
 const json = (schema: object) => ({ content: { 'application/json': { schema } } });
 
+// Origin-set header the Fastly NGWAF ATO templated rules key off (login /
+// registration / password-reset attempt|success|failure).
+const authEventHeader = {
+  'X-Auth-Event': {
+    description: 'Auth outcome signal consumed by Fastly NGWAF templated rules',
+    schema: {
+      type: 'string',
+      enum: [
+        'login-success',
+        'login-failure',
+        'register-success',
+        'register-failure',
+        'password-reset-attempt',
+        'password-reset-success',
+        'password-reset-failure',
+      ],
+    },
+  },
+};
+
 const productSchema = {
   type: 'object',
   properties: {
@@ -141,9 +161,9 @@ export const openapiSpec = {
           }),
         },
         responses: {
-          '201': { description: 'Account created', ...json({ $ref: '#/components/schemas/AuthResponse' }) },
-          '400': errorResponse('Validation error'),
-          '409': errorResponse('Email already registered'),
+          '201': { description: 'Account created (X-Auth-Event: register-success)', headers: authEventHeader, ...json({ $ref: '#/components/schemas/AuthResponse' }) },
+          '400': errorResponse('Validation error (X-Auth-Event: register-failure)'),
+          '409': errorResponse('Email already registered (X-Auth-Event: register-failure)'),
         },
       },
     },
@@ -163,8 +183,59 @@ export const openapiSpec = {
           }),
         },
         responses: {
-          '200': { description: 'Authenticated', ...json({ $ref: '#/components/schemas/AuthResponse' }) },
-          '401': errorResponse('Invalid credentials'),
+          '200': { description: 'Authenticated (X-Auth-Event: login-success)', headers: authEventHeader, ...json({ $ref: '#/components/schemas/AuthResponse' }) },
+          '401': errorResponse('Invalid credentials (X-Auth-Event: login-failure)'),
+        },
+      },
+    },
+    '/api/auth/forgot-password': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Request a password reset link',
+        description:
+          'Always returns 200 with an identical body (anti-enumeration). Sets response header `X-Auth-Event: password-reset-attempt`. No email is sent in this demo; the reset link is logged server-side.',
+        requestBody: {
+          required: true,
+          ...json({
+            type: 'object',
+            required: ['email'],
+            properties: { email: { type: 'string', example: 'ava@demo.dev' } },
+          }),
+        },
+        responses: {
+          '200': {
+            description: 'Reset requested (X-Auth-Event: password-reset-attempt)',
+            headers: authEventHeader,
+            ...json({ type: 'object', properties: { message: { type: 'string' } } }),
+          },
+          '400': errorResponse('Validation error (X-Auth-Event: password-reset-failure)'),
+        },
+      },
+    },
+    '/api/auth/reset-password': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Reset a password using a reset token',
+        description:
+          'Sets `X-Auth-Event: password-reset-success` on success, or `password-reset-failure` on any bad/expired/used token or invalid new password.',
+        requestBody: {
+          required: true,
+          ...json({
+            type: 'object',
+            required: ['token', 'password'],
+            properties: {
+              token: { type: 'string', example: 'a1b2c3…' },
+              password: { type: 'string', example: 'NewPassword123!' },
+            },
+          }),
+        },
+        responses: {
+          '200': {
+            description: 'Password reset (X-Auth-Event: password-reset-success)',
+            headers: authEventHeader,
+            ...json({ type: 'object', properties: { message: { type: 'string' } } }),
+          },
+          '400': errorResponse('Invalid/expired token or weak password (X-Auth-Event: password-reset-failure)'),
         },
       },
     },

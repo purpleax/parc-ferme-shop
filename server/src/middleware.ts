@@ -46,6 +46,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       ip: req.ip,
       userId: req.user?.id ?? null,
       role: req.user?.role ?? 'anonymous',
+      authEvent: (res.getHeader('X-Auth-Event') as string) ?? null,
       userAgent: req.headers['user-agent'] ?? '',
     };
     // Human-readable console line + JSON file line (logs/api.log)

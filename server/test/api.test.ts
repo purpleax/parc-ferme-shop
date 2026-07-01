@@ -167,6 +167,95 @@ describe('auth', () => {
     const res = await request(app).get('/api/auth/me');
     expect(res.status).toBe(401);
   });
+
+
+  it('tags login success and failure with X-Auth-Event', async () => {
+    const ok = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ava@demo.dev', password: 'Customer123!' });
+    expect(ok.status).toBe(200);
+    expect(ok.headers['x-auth-event']).toBe('login-success');
+
+    const bad = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ava@demo.dev', password: 'nope' });
+    expect(bad.status).toBe(401);
+    expect(bad.headers['x-auth-event']).toBe('login-failure');
+  });
+});
+
+describe('password reset', () => {
+  const email = 'reset-me@example.com';
+
+  beforeAll(async () => {
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Reset Me', email, password: 'Original1' });
+  });
+
+  // The raw token never leaves the server (it's logged, not returned), so pull
+  // it straight from the DB the way an operator would read it from the logs.
+  async function issueToken(): Promise<string> {
+    const crypto = await import('node:crypto');
+    const { db } = await import('../src/db.js');
+    const raw = crypto.randomBytes(32).toString('hex');
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number };
+    db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(user.id);
+    db.prepare(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)'
+    ).run(user.id, crypto.createHash('sha256').update(raw).digest('hex'), new Date(Date.now() + 60000).toISOString());
+    return raw;
+  }
+
+  it('always returns 200 + password-reset-attempt, even for unknown emails', async () => {
+    const known = await request(app).post('/api/auth/forgot-password').send({ email });
+    const unknown = await request(app).post('/api/auth/forgot-password').send({ email: 'nobody@example.com' });
+    expect(known.status).toBe(200);
+    expect(unknown.status).toBe(200);
+    expect(known.headers['x-auth-event']).toBe('password-reset-attempt');
+    expect(unknown.headers['x-auth-event']).toBe('password-reset-attempt');
+    // Identical bodies — the response cannot be used to enumerate accounts.
+    expect(known.body).toEqual(unknown.body);
+  });
+
+  it('resets the password with a valid token and tags password-reset-success', async () => {
+    const token = await issueToken();
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'BrandNew1' });
+    expect(res.status).toBe(200);
+    expect(res.headers['x-auth-event']).toBe('password-reset-success');
+
+    // The new password actually works, and the old one no longer does.
+    const good = await request(app).post('/api/auth/login').send({ email, password: 'BrandNew1' });
+    expect(good.status).toBe(200);
+    const stale = await request(app).post('/api/auth/login').send({ email, password: 'Original1' });
+    expect(stale.status).toBe(401);
+  });
+
+  it('rejects an invalid token with password-reset-failure', async () => {
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: 'not-a-real-token', password: 'BrandNew1' });
+    expect(res.status).toBe(400);
+    expect(res.headers['x-auth-event']).toBe('password-reset-failure');
+  });
+
+  it('rejects a reused token with password-reset-failure', async () => {
+    const token = await issueToken();
+    const first = await request(app).post('/api/auth/reset-password').send({ token, password: 'Reused123' });
+    expect(first.status).toBe(200);
+    const second = await request(app).post('/api/auth/reset-password').send({ token, password: 'Reused456' });
+    expect(second.status).toBe(400);
+    expect(second.headers['x-auth-event']).toBe('password-reset-failure');
+  });
+
+  it('rejects a weak new password with password-reset-failure', async () => {
+    const token = await issueToken();
+    const res = await request(app).post('/api/auth/reset-password').send({ token, password: 'short' });
+    expect(res.status).toBe(400);
+    expect(res.headers['x-auth-event']).toBe('password-reset-failure');
+  });
 });
 
 describe('cart → checkout → payment flow', () => {

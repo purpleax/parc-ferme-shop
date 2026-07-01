@@ -188,19 +188,32 @@ paths:
                   example: Password123!
       responses:
         '201':
-          description: Account created
+          description: 'Account created (X-Auth-Event: register-success)'
+          headers:
+            X-Auth-Event:
+              description: Auth outcome signal consumed by Fastly NGWAF templated rules
+              schema:
+                type: string
+                enum:
+                  - login-success
+                  - login-failure
+                  - register-success
+                  - register-failure
+                  - password-reset-attempt
+                  - password-reset-success
+                  - password-reset-failure
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Validation error
+          description: 'Validation error (X-Auth-Event: register-failure)'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Email already registered
+          description: 'Email already registered (X-Auth-Event: register-failure)'
           content:
             application/json:
               schema:
@@ -228,13 +241,128 @@ paths:
                   example: Customer123!
       responses:
         '200':
-          description: Authenticated
+          description: 'Authenticated (X-Auth-Event: login-success)'
+          headers:
+            X-Auth-Event:
+              description: Auth outcome signal consumed by Fastly NGWAF templated rules
+              schema:
+                type: string
+                enum:
+                  - login-success
+                  - login-failure
+                  - register-success
+                  - register-failure
+                  - password-reset-attempt
+                  - password-reset-success
+                  - password-reset-failure
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Invalid credentials
+          description: 'Invalid credentials (X-Auth-Event: login-failure)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Request a password reset link
+      description: >-
+        Always returns 200 with an identical body (anti-enumeration). Sets response header `X-Auth-Event:
+        password-reset-attempt`. No email is sent in this demo; the reset link is logged server-side.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  example: ava@demo.dev
+      responses:
+        '200':
+          description: 'Reset requested (X-Auth-Event: password-reset-attempt)'
+          headers:
+            X-Auth-Event:
+              description: Auth outcome signal consumed by Fastly NGWAF templated rules
+              schema:
+                type: string
+                enum:
+                  - login-success
+                  - login-failure
+                  - register-success
+                  - register-failure
+                  - password-reset-attempt
+                  - password-reset-success
+                  - password-reset-failure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: 'Validation error (X-Auth-Event: password-reset-failure)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset a password using a reset token
+      description: >-
+        Sets `X-Auth-Event: password-reset-success` on success, or `password-reset-failure` on any bad/expired/used
+        token or invalid new password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  example: a1b2c3…
+                password:
+                  type: string
+                  example: NewPassword123!
+      responses:
+        '200':
+          description: 'Password reset (X-Auth-Event: password-reset-success)'
+          headers:
+            X-Auth-Event:
+              description: Auth outcome signal consumed by Fastly NGWAF templated rules
+              schema:
+                type: string
+                enum:
+                  - login-success
+                  - login-failure
+                  - register-success
+                  - register-failure
+                  - password-reset-attempt
+                  - password-reset-success
+                  - password-reset-failure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: 'Invalid/expired token or weak password (X-Auth-Event: password-reset-failure)'
           content:
             application/json:
               schema:

@@ -74,7 +74,12 @@ export function Login() {
         </button>
         <DeviceVerification className="w-full justify-center" />
       </form>
-      <p className="mt-5 text-center text-sm text-muted">
+      <p className="mt-4 text-center text-sm text-muted">
+        <Link to="/forgot-password" className="font-medium text-accent hover:underline">
+          Forgot your password?
+        </Link>
+      </p>
+      <p className="mt-2 text-center text-sm text-muted">
         New here?{' '}
         <Link to={`/register${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-medium text-accent hover:underline">
           Create an account
@@ -145,6 +150,131 @@ export function Register() {
         Already have an account?{' '}
         <Link to={`/login${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-medium text-accent hover:underline">
           Sign in
+        </Link>
+      </p>
+    </AuthShell>
+  );
+}
+
+export function ForgotPassword() {
+  const { requestPasswordReset } = useAuth();
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await requestPasswordReset(email);
+    } catch {
+      // Deliberately ignore errors: the endpoint always succeeds for a valid
+      // email, and we never reveal whether an account exists.
+    } finally {
+      setBusy(false);
+      setSent(true);
+    }
+  };
+
+  return (
+    <AuthShell title="Reset your password" subtitle="We'll email you a link to set a new one.">
+      {sent ? (
+        <div role="status" className="animate-fade-up mt-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-4 text-sm leading-relaxed text-muted">
+          <span className="font-semibold text-snow">Password reset link emailed.</span>
+          <br />
+          If an account exists for <span className="text-snow">{email}</span>, a link to reset your
+          password is on its way. Check your inbox and spam folder.
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-5 space-y-4" noValidate>
+          <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          <button
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
+          >
+            {busy && <Spinner className="h-4 w-4" />}
+            Email me a reset link
+          </button>
+        </form>
+      )}
+      <p className="mt-5 text-center text-sm text-muted">
+        <Link to="/login" className="font-medium text-accent hover:underline">
+          Back to sign in
+        </Link>
+      </p>
+    </AuthShell>
+  );
+}
+
+export function ResetPassword() {
+  const { resetPassword } = useAuth();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const token = params.get('token') ?? '';
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setErrors({});
+    setBusy(true);
+    try {
+      await resetPassword(token, password);
+      navigate('/login');
+    } catch (err) {
+      setErrors(detailErrors(err));
+      setError(err instanceof ApiError ? err.message : 'Could not reset your password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <AuthShell title="Reset your password" subtitle="Something's missing.">
+        <div role="alert" className="animate-fade-up mt-5 rounded-xl border border-terracotta/30 bg-terracotta/10 px-4 py-3 text-sm text-terracotta">
+          This reset link is missing its token. Request a new link to continue.
+        </div>
+        <p className="mt-5 text-center text-sm text-muted">
+          <Link to="/forgot-password" className="font-medium text-accent hover:underline">
+            Request a new link
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell title="Choose a new password" subtitle="Almost there — pick something strong.">
+      {error && (
+        <div role="alert" className="animate-fade-up mt-4 rounded-xl border border-terracotta/30 bg-terracotta/10 px-4 py-3 text-sm text-terracotta">
+          {error}
+        </div>
+      )}
+      <form onSubmit={submit} className="mt-5 space-y-4" noValidate>
+        <Field
+          label="New password"
+          type="password"
+          value={password}
+          error={errors['password']}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+          placeholder="8+ characters, a letter and a number"
+        />
+        <button
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-carbon transition hover:bg-accent-light disabled:opacity-60"
+        >
+          {busy && <Spinner className="h-4 w-4" />}
+          Reset password
+        </button>
+      </form>
+      <p className="mt-5 text-center text-sm text-muted">
+        <Link to="/login" className="font-medium text-accent hover:underline">
+          Back to sign in
         </Link>
       </p>
     </AuthShell>

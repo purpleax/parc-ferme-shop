@@ -288,12 +288,14 @@ npm run simulate -- --users 8 --duration 300  # 8 shoppers, run 5 minutes
 npm run simulate -- --loops 5                 # each user runs 5 sessions then stops
 npm run simulate -- --no-admin --verbose      # shoppers only, log every request
 API_URL=https://demo.example.com npm run simulate   # point at any deployment
-ADMIN_PASSWORD=… API_URL=https://your-deploy npm run simulate   # hardened deploy
+ADMIN_PASSWORD='your-admin-pw' npm run simulate -- --base https://your-deploy   # hardened deploy
 ```
 
 The admin persona defaults to the demo credentials; against a hardened deploy set
 `ADMIN_EMAIL` / `ADMIN_PASSWORD` so it can authenticate (`demo.mjs` reads the same
-vars).
+vars). **Single-quote the password** — in bash/zsh, characters like `!` trigger
+history expansion (even inside double quotes), and use the inline `VAR=… command`
+form (no semicolon) so it's exported to the process.
 
 | Flag | Default | Meaning |
 |---|---|---|

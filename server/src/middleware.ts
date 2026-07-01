@@ -65,7 +65,7 @@ export function signToken(user: AuthUser): string {
   return jwt.sign(
     { sub: String(user.id), email: user.email, name: user.name, role: user.role },
     config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn }
+    { expiresIn: config.jwtExpiresIn, algorithm: config.jwtAlgorithm }
   );
 }
 
@@ -73,7 +73,9 @@ function parseToken(req: Request): AuthUser | null {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
   try {
-    const payload = jwt.verify(header.slice(7), config.jwtSecret) as jwt.JwtPayload;
+    const payload = jwt.verify(header.slice(7), config.jwtSecret, {
+      algorithms: [config.jwtAlgorithm],
+    }) as jwt.JwtPayload;
     return {
       id: Number(payload.sub),
       email: String(payload.email),

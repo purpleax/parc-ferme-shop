@@ -47,6 +47,10 @@ Then open:
 (Three more seeded customers — `noah@demo.dev`, `imani@demo.dev`,
 `lucas@demo.dev` — all use `Customer123!`.)
 
+> These passwords apply to **local dev/test only**. In production the admin
+> password comes from `ADMIN_PASSWORD` (or is randomly generated and logged on
+> first seed), so `Admin123!` is not valid on a real deployment.
+
 ### Test credit cards (mock payments only)
 
 | Number | Result |
@@ -304,7 +308,8 @@ high-volume runs from one IP may be throttled or blocked there.
 | Env var | Default | Purpose |
 |---|---|---|
 | `PORT` | `4000` | API port |
-| `JWT_SECRET` | dev value | Set your own for any shared environment |
+| `JWT_SECRET` | dev-only fallback | **Required in production** — a unique 32+ char secret (`openssl rand -hex 32`). The API refuses to boot in production if it's missing or a known repo default. |
+| `ADMIN_PASSWORD` | — | Seeded admin password. In production, if unset, a random one is generated and printed once to the boot log. Dev/test use the demo password. |
 | `DATABASE_PATH` | `server/data/store.db` | `:memory:` used by tests |
 | `LOG_FILE` | `server/logs/api.log` | JSON request log |
 

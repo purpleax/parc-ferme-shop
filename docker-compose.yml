@@ -14,8 +14,14 @@ services:
     ports:
       - "4000:4000"
     environment:
-      # Override for your environment as needed.
-      JWT_SECRET: change-me-for-your-demo
+      # REQUIRED: a unique, high-entropy secret (min 32 chars). Generate one with
+      # `openssl rand -hex 32` and export it (or put it in a .env file) before
+      # `docker compose up`. The API refuses to start in production without it,
+      # and `compose up` errors here if it is unset.
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET to a strong random value, e.g. openssl rand -hex 32}"
+      # Optional: choose the seeded admin password. If unset, a random one is
+      # generated and printed once in the container logs on first seed.
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
     volumes:
       # Persist the SQLite database between restarts. Remove the volume
       # (docker compose down -v) to reset to fresh seed data.

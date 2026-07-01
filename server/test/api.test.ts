@@ -168,6 +168,26 @@ describe('auth', () => {
     expect(res.status).toBe(401);
   });
 
+  it('rejects a JWT forged with the old public default secret', async () => {
+    const jwt = (await import('jsonwebtoken')).default;
+    const forged = jwt.sign(
+      { sub: '1', email: 'attacker@evil.test', name: 'Mallory', role: 'admin' },
+      'parc-ferme-demo-secret-change-me',
+      { algorithm: 'HS256' }
+    );
+    const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${forged}`);
+    expect(me.status).toBe(401);
+    const admin = await request(app).get('/api/admin/customers').set('Authorization', `Bearer ${forged}`);
+    expect(admin.status).toBe(401);
+  });
+
+  it('rejects an unsigned (alg=none) token', async () => {
+    const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const none = `${b64({ alg: 'none', typ: 'JWT' })}.${b64({ sub: '1', role: 'admin' })}.`;
+    const res = await request(app).get('/api/admin/customers').set('Authorization', `Bearer ${none}`);
+    expect(res.status).toBe(401);
+  });
+
 
   it('tags login success and failure with X-Auth-Event', async () => {
     const ok = await request(app)

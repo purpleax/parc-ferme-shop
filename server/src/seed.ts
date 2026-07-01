@@ -1,10 +1,30 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { config } from './config.js';
 import type { Db } from './db.js';
 
 export const DEMO_ACCOUNTS = {
   admin: { email: 'admin@parcferme.dev', password: 'Admin123!', name: 'Margot Hale' },
   customer: { email: 'ava@demo.dev', password: 'Customer123!', name: 'Ava Chen' },
 };
+
+// The seeded admin is privileged, so it must never be provisioned with the
+// repo-known demo password in production. Precedence: ADMIN_PASSWORD env → a
+// freshly generated random password (printed once to the boot log) → the stable
+// demo password (dev/test only, keeps local workflows and tests working).
+export function resolveAdminPassword(): string {
+  const provided = process.env.ADMIN_PASSWORD;
+  if (provided) return provided;
+  if (config.env === 'production') {
+    const generated = crypto.randomBytes(18).toString('base64url');
+    console.log(
+      `\x1b[33m[seed]\x1b[0m Generated admin password for ${DEMO_ACCOUNTS.admin.email}: ${generated}\n` +
+        '       Save it now — it is not shown again. Set ADMIN_PASSWORD to choose your own.'
+    );
+    return generated;
+  }
+  return DEMO_ACCOUNTS.admin.password;
+}
 
 const categories = [
   { slug: 'helmets', name: 'Helmets', description: 'Signed lids and replica shells from the sport’s defining eras.', seed: 'cat-helmets' },
@@ -125,7 +145,7 @@ export function seedDatabase(db: Db) {
   const insertUser = db.prepare(
     "INSERT INTO users (email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, datetime('now', ?))"
   );
-  insertUser.run(DEMO_ACCOUNTS.admin.email, hash(DEMO_ACCOUNTS.admin.password), DEMO_ACCOUNTS.admin.name, 'admin', '-90 days');
+  insertUser.run(DEMO_ACCOUNTS.admin.email, hash(resolveAdminPassword()), DEMO_ACCOUNTS.admin.name, 'admin', '-90 days');
   const avaId = Number(
     insertUser.run(DEMO_ACCOUNTS.customer.email, hash(DEMO_ACCOUNTS.customer.password), DEMO_ACCOUNTS.customer.name, 'customer', '-45 days').lastInsertRowid
   );

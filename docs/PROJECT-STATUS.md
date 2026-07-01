@@ -54,6 +54,10 @@ container (must be running).
 - Customer: `ava@demo.dev` / `Customer123!` (also noah/imani/lucas@demo.dev / `Customer123!`)
 - Cards: `4242 4242 4242 4242` succeeds · `4000 0000 0000 0002` declines ·
   `4000 0000 0000 9995` insufficient funds.
+- **Dev/test only.** In production, `JWT_SECRET` is required (app refuses to boot without a
+  unique 32+ char value; JWTs pinned to `HS256`) and the admin password comes from
+  `ADMIN_PASSWORD` or is randomly generated and logged on first seed — so these passwords
+  do not work on the live deploy.
 
 ## Scripts
 

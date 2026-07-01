@@ -41,9 +41,13 @@ do require a running server (`API_URL` env overrides the base URL).
 - **Node ≥ 22.5** — the DB layer uses the built-in `node:sqlite` module (see below).
 - SQLite DB and request log are created at runtime under `server/data/` and `server/logs/`
   (gitignored). `npm run seed` resets to pristine demo data.
-- Demo accounts: admin `admin@parcferme.dev` / `Admin123!`, customer `ava@demo.dev` /
-  `Customer123!`. Test cards: `4242…4242` succeeds, `4000…0002` declines, `4000…9995`
-  insufficient funds.
+- Demo accounts (**dev/test only**): admin `admin@parcferme.dev` / `Admin123!`, customer
+  `ava@demo.dev` / `Customer123!`. Test cards: `4242…4242` succeeds, `4000…0002` declines,
+  `4000…9995` insufficient funds.
+- **Production secrets**: `JWT_SECRET` is **required** in production (`NODE_ENV=production`) —
+  the app refuses to boot without a unique 32+ char value (repo defaults are blocklisted), and
+  JWTs are pinned to `HS256`. The seeded admin password comes from `ADMIN_PASSWORD`, or is
+  randomly generated and logged once. `Admin123!`/`Customer123!` never apply in production.
 
 ## Architecture (the big picture)
 

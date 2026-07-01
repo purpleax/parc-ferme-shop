@@ -52,11 +52,6 @@ export function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your Parc Fermé account.">
-      <div className="mt-5 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-xs leading-relaxed text-muted">
-        <span className="font-semibold text-snow">Demo accounts</span><br />
-        Customer: ava@demo.dev / Customer123!<br />
-        Admin: admin@parcferme.dev / Admin123!
-      </div>
       {error && (
         <div role="alert" className="animate-fade-up mt-4 rounded-xl border border-terracotta/30 bg-terracotta/10 px-4 py-3 text-sm text-terracotta">
           {error}

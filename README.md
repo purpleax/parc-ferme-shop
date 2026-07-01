@@ -278,7 +278,9 @@ declines), order history, newsletter signups, and the complete admin surface
 It generates lifelike, varied traffic so that API-discovery, WAF, bot-management
 and observability tooling can see every endpoint in use, then prints an
 **endpoint coverage report** (request counts + status-code breakdown per route,
-and which of the 31 documented endpoints were exercised).
+and which of the 33 documented endpoints were exercised). Shoppers also
+occasionally exercise the password-reset flow, generating `X-Auth-Event:
+password-reset-*` traffic for the Fastly NGWAF ATO templated rules.
 
 ```bash
 npm run simulate                              # 3 shoppers + 1 admin, 60s
@@ -286,7 +288,12 @@ npm run simulate -- --users 8 --duration 300  # 8 shoppers, run 5 minutes
 npm run simulate -- --loops 5                 # each user runs 5 sessions then stops
 npm run simulate -- --no-admin --verbose      # shoppers only, log every request
 API_URL=https://demo.example.com npm run simulate   # point at any deployment
+ADMIN_PASSWORD=… API_URL=https://your-deploy npm run simulate   # hardened deploy
 ```
+
+The admin persona defaults to the demo credentials; against a hardened deploy set
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` so it can authenticate (`demo.mjs` reads the same
+vars).
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -315,12 +322,22 @@ high-volume runs from one IP may be throttled or blocked there.
 
 ## 7. Docker (only after local verification)
 
-Make sure the app works locally first (section 8 below). Then:
+Make sure the app works locally first (section 8 below). Compose **requires**
+`JWT_SECRET` — create a root `.env` (Docker Compose auto-loads it; it's
+gitignored) with a strong secret, then build:
 
 ```bash
+# .env  (repo root, next to docker-compose.yml)
+#   JWT_SECRET=<paste `openssl rand -hex 32`>
+#   ADMIN_PASSWORD=<optional; if unset, a random one is generated + logged>
+
 docker compose up --build
 # → http://localhost:4000  (single container: API + built frontend)
 ```
+
+`docker compose up` errors out if `JWT_SECRET` isn't set. After a deploy, the
+site footer shows a `build <timestamp> UTC` stamp so you can confirm the new
+image is live.
 
 The container runs as the non-root `node` user and auto-seeds on first start,
 persisting the database in the `store-data` named volume. If you ran an earlier
@@ -365,11 +382,16 @@ and the cacheable image endpoint are all served from that one origin.
 | Docker build fails on `npm ci` | Stale lockfiles after editing package.json manually — run `npm install` in `server/` and `client/` locally and rebuild. |
 | Docker container crash-loops with `unable to open database file` (`ERR_SQLITE_ERROR`) | The `store-data` volume was created root-owned by an earlier build, and the container runs as the non-root `node` user. Remove the stale volume and rebuild: `docker compose down -v && docker compose up --build`. |
 | 401 on every authenticated call after server restart with a new `JWT_SECRET` | Old browser token was signed with the previous secret. Sign out and back in. |
+| `docker compose up` errors with `JWT_SECRET` required, or the API refuses to boot in production | Set a strong `JWT_SECRET` (min 32 chars, not a repo default) — in a root `.env` or the shell (`JWT_SECRET=$(openssl rand -hex 32) docker compose up`). |
+| Can't log in as admin with the password in `.env` | `ADMIN_PASSWORD` only applies on a **fresh** seed. An existing `store-data` volume keeps the old password — `docker compose down -v` to re-seed, or check the boot log for the generated password. |
 
 ## Security notes for the demo environment
 
 - Mock payments only; card data is validated then discarded (brand + last4 kept).
-- Passwords are bcrypt-hashed; JWTs expire after 7 days.
+- Passwords are bcrypt-hashed; JWTs are pinned to `HS256`, expire after 7 days,
+  and in production require a unique `JWT_SECRET` (the app refuses to boot on a
+  missing/known-default secret). The seeded admin password is `ADMIN_PASSWORD`
+  or randomly generated in production — never a repo default.
 - All inputs are Zod-validated; all SQL is parameterised.
 - There are **no intentional vulnerabilities**. If a demo needs exploitable
   endpoints (BOLA, injection, etc.), add them deliberately on a branch.

@@ -1,26 +1,11 @@
 /// <reference types="vitest/config" />
-import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-// Build stamp shown in the footer so it's obvious which build is live. The
-// timestamp is captured whenever the client is built; the short git SHA comes
-// from $GIT_SHA (set in Docker, where .git isn't available) or `git` locally.
-function resolveBuildStamp() {
-  let sha = (process.env.GIT_SHA ?? '').trim();
-  if (!sha) {
-    try {
-      sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
-        .toString()
-        .trim();
-    } catch {
-      sha = '';
-    }
-  }
-  return { time: new Date().toISOString(), sha };
-}
-const buildStamp = resolveBuildStamp();
+// Build timestamp shown in the footer so it's obvious which build is live.
+// Captured whenever the client is built.
+const buildTime = new Date().toISOString();
 
 // Injects the Fastly Advanced Client-Side Detection (ACSD) script into <head>
 // above all other scripts at build time, when VITE_FASTLY_ACSD_FILE is set.
@@ -57,8 +42,7 @@ function fastlyAcsdPlugin(): Plugin {
 
 export default defineConfig({
   define: {
-    __BUILD_TIME__: JSON.stringify(buildStamp.time),
-    __GIT_SHA__: JSON.stringify(buildStamp.sha),
+    __BUILD_TIME__: JSON.stringify(buildTime),
   },
   plugins: [fastlyAcsdPlugin(), react(), tailwindcss()],
   server: {

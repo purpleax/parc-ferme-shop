@@ -3,8 +3,6 @@ import request from 'supertest';
 import type { Express } from 'express';
 
 process.env.DATABASE_PATH = ':memory:';
-process.env.RATE_LIMIT_GENERAL = '10000';
-process.env.RATE_LIMIT_AUTH = '10000';
 process.env.RESET_TEST_DOMAIN = 'resettest.dev';
 
 let app: Express;

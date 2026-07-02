@@ -24,7 +24,7 @@ npm run dev:api          # API only       npm run dev:web   # client only
 npm test                 # server (vitest+supertest) + client tests
 npm run typecheck        # tsc on both
 npm run build            # build the client (client/dist)
-npm run demo             # end-to-end API smoke test against a RUNNING server (--flood for 429s)
+npm run demo             # end-to-end API smoke test against a RUNNING server
 npm run simulate         # multi-user traffic generator (API-discovery/WAF demos)
 npm run spec             # regenerate static server/openapi.json + .yaml from openapi.ts
 npm run fetch-images     # one-time: download F1 photos (Wikimedia); SVG fallback otherwise
@@ -54,7 +54,8 @@ do require a running server (`API_URL` env overrides the base URL).
 **Server (`server/src/`)** — Express 4 + TypeScript, run directly with **tsx** (no build
 step). Request pipeline in `app.ts`: `requestId` (adds `X-Request-Id` + security headers)
 → `attachUser` (decodes JWT if present) → `requestLogger` (JSON line per `/api` request to
-console + `logs/api.log`) → route-specific limiters → routers → `apiNotFound` → static
+console + `logs/api.log`) → `apiCacheControl` (no-store on per-user/mutating responses)
+→ routers → `apiNotFound` → static
 client (`client/dist` if present) → `errorHandler`. All errors flow through `ApiError`
 (`errors.ts`) into one envelope: `{ error: { code, message, details?, requestId } }`.
 
@@ -63,9 +64,10 @@ client (`client/dist` if present) → `errorHandler`. All errors flow through `A
   import. Rows are typed at call sites (statements return loose types). Money is stored as
   integer cents everywhere.
 - **`middleware.ts`** owns auth (`signToken`/`requireAuth`/`requireAdmin`), Zod validation
-  (`parse(schema, data)` throws `ApiError` 400 with field details), rate limiters
-  (general / auth / newsletter tiers), the logger, and `asyncHandler` (Express 4 does not
-  forward async rejections — async routes must be wrapped; only payment-confirm is async).
+  (`parse(schema, data)` throws `ApiError` 400 with field details), cache-control, the
+  logger, and `asyncHandler` (Express 4 does not forward async rejections — async routes
+  must be wrapped; only payment-confirm is async). There is **no app-level rate limiting**
+  — that is handled at the Fastly edge.
 - **Routes** (`routes/`): `auth` (register/login/me + password reset via
   `forgot-password`/`reset-password`; single-use hashed tokens in
   `password_reset_tokens`, 30-min expiry, no email — the link is logged, or

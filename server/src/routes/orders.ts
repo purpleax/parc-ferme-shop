@@ -116,7 +116,10 @@ ordersRouter.post('/', (req, res) => {
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CENTS;
   const tax = Math.round(subtotal * TAX_RATE);
   const total = subtotal + shipping + tax;
-  const id = orderId();
+  // PF-XXXXXX is short enough to collide eventually; retry instead of letting
+  // the primary key turn a collision into a 500. (Sync code — no TOCTOU.)
+  let id = orderId();
+  while (db.prepare('SELECT 1 FROM orders WHERE id = ?').get(id)) id = orderId();
 
   const create = db.transaction(() => {
     db.prepare(`

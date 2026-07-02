@@ -84,9 +84,20 @@ router.post('/register', (req, res) => {
     if (existing) throw conflict('EMAIL_TAKEN', 'An account with this email already exists');
 
     const hash = bcrypt.hashSync(body.password, 10);
-    const result = db
-      .prepare("INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, 'customer')")
-      .run(body.email, hash, body.name);
+    let result;
+    try {
+      result = db
+        .prepare("INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, 'customer')")
+        .run(body.email, hash, body.name);
+    } catch (err) {
+      // Two near-simultaneous registrations can both pass the SELECT above;
+      // the UNIQUE index is the real arbiter, so map its violation to the
+      // same 409 instead of surfacing a 500.
+      if (err instanceof Error && err.message.includes('UNIQUE constraint failed: users.email')) {
+        throw conflict('EMAIL_TAKEN', 'An account with this email already exists');
+      }
+      throw err;
+    }
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid) as UserRow;
     const token = signToken({ id: user.id, email: user.email, name: user.name, role: user.role });
     authEvent(res, 'register-success');

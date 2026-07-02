@@ -417,6 +417,82 @@ describe('cart → checkout → payment flow', () => {
   });
 });
 
+describe('payment idempotency', () => {
+  const GOOD_CARD = { number: TEST_CARD_OK, expMonth: 12, expYear: 2030, cvc: '123', name: 'Ava Chen' };
+
+  // Fresh cart + order per test so the shared checkout-flow state stays untouched.
+  async function createPendingOrder() {
+    const created = await request(app).post('/api/cart');
+    const cartId = created.body.cart.id;
+    const products = await request(app).get('/api/products');
+    const product = products.body.items.find((p: { stock: number }) => p.stock >= 3);
+    await request(app).post(`/api/cart/${cartId}/items`).send({ productId: product.id, qty: 1 });
+    const order = await request(app)
+      .post('/api/orders')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({
+        cartId,
+        shipping: { name: 'Ava Chen', line1: '14 Foundry Lane', city: 'Portland', postalCode: '97209', country: 'United States' },
+      });
+    expect(order.status).toBe(201);
+    return { orderId: order.body.order.id as string, productSlug: product.slug as string };
+  }
+
+  async function createIntent(orderId: string): Promise<string> {
+    const intent = await request(app)
+      .post('/api/payments/intent')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ orderId });
+    expect(intent.status).toBe(201);
+    return intent.body.payment.id;
+  }
+
+  const confirm = (paymentId: string) =>
+    request(app)
+      .post(`/api/payments/${paymentId}/confirm`)
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ card: GOOD_CARD });
+
+  async function stockOf(slug: string): Promise<number> {
+    const res = await request(app).get(`/api/products/${slug}`);
+    return res.body.product.stock;
+  }
+
+  it('rejects confirming the same payment twice', async () => {
+    const { orderId } = await createPendingOrder();
+    const paymentId = await createIntent(orderId);
+    expect((await confirm(paymentId)).status).toBe(200);
+    const second = await confirm(paymentId);
+    expect(second.status).toBe(400);
+    expect(second.body.error.message).toContain('already succeeded');
+  });
+
+  it('rejects a stale second intent once the order is paid, decrementing stock once', async () => {
+    const { orderId, productSlug } = await createPendingOrder();
+    const stockBefore = await stockOf(productSlug);
+    // Both intents are created while the order is still pending.
+    const intentA = await createIntent(orderId);
+    const intentB = await createIntent(orderId);
+
+    expect((await confirm(intentA)).status).toBe(200);
+    const stale = await confirm(intentB);
+    expect(stale.status).toBe(400);
+    expect(stale.body.error.message).toContain('cannot be paid again');
+    expect(await stockOf(productSlug)).toBe(stockBefore - 1);
+  });
+
+  it('lets exactly one of two concurrent confirms win', async () => {
+    const { orderId, productSlug } = await createPendingOrder();
+    const stockBefore = await stockOf(productSlug);
+    const paymentId = await createIntent(orderId);
+    // Both requests pass the pre-checks before the simulated processor delay;
+    // the conditional finalize must let only one through.
+    const [a, b] = await Promise.all([confirm(paymentId), confirm(paymentId)]);
+    expect([a.status, b.status].sort()).toEqual([200, 400]);
+    expect(await stockOf(productSlug)).toBe(stockBefore - 1);
+  });
+});
+
 describe('admin', () => {
   it('blocks customers from admin endpoints', async () => {
     const res = await request(app).get('/api/admin/stats').set('Authorization', `Bearer ${customerToken}`);

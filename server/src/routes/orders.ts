@@ -226,6 +226,11 @@ paymentsRouter.post('/:paymentId/confirm', asyncHandler(async (req, res) => {
   if (payment.status !== 'requires_confirmation') {
     throw badRequest(`Payment already ${payment.status}`);
   }
+  // Several intents can exist for one order; once any of them succeeds the
+  // order must not be payable again through the others.
+  if (order.status !== 'pending_payment') {
+    throw badRequest(`Order is ${order.status} and cannot be paid again`);
+  }
 
   const { number, expMonth, expYear } = body.card;
   if (!luhnValid(number)) {
@@ -258,10 +263,18 @@ paymentsRouter.post('/:paymentId/confirm', asyncHandler(async (req, res) => {
   const last4 = number.slice(-4);
   const brand = cardBrand(number);
   const finalize = db.transaction(() => {
-    db.prepare("UPDATE payments SET status = 'succeeded', card_brand = ?, card_last4 = ? WHERE id = ?").run(
-      brand, last4, paymentId
-    );
-    db.prepare("UPDATE orders SET status = 'paid' WHERE id = ?").run(order.id);
+    // The pre-checks above ran before the simulated-latency await, so a
+    // concurrent confirm may have finalized in the meantime. The conditional
+    // updates make exactly one confirm win; the loser rolls back untouched.
+    const claimed = db.prepare(
+      "UPDATE payments SET status = 'succeeded', card_brand = ?, card_last4 = ? WHERE id = ? AND status = 'requires_confirmation'"
+    ).run(brand, last4, paymentId);
+    const paid = db.prepare(
+      "UPDATE orders SET status = 'paid' WHERE id = ? AND status = 'pending_payment'"
+    ).run(order.id);
+    if (Number(claimed.changes) === 0 || Number(paid.changes) === 0) {
+      throw badRequest('Order has already been paid');
+    }
     const items = db.prepare('SELECT product_id, qty FROM order_items WHERE order_id = ?').all(order.id) as
       { product_id: number; qty: number }[];
     const decrement = db.prepare('UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ?');

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { getErrorMessage } from '../lib/errors';
 import type { Category, ProductListResponse } from '../lib/types';
 import { ProductCard } from '../components/ProductCard';
 import { EmptyState, ErrorState, ProductCardSkeleton, SelectField } from '../components/ui';
@@ -35,20 +36,32 @@ export function Shop() {
   }, []);
 
   useEffect(() => {
+    // Rapid filter changes fire overlapping fetches; drop any response that
+    // arrives after the params have moved on, or a slow one wins over a newer.
+    let stale = false;
     setLoading(true);
     setError(null);
     const query = new URLSearchParams();
-    if (search) query.set('search', search);
-    if (category) query.set('category', category);
+    if (params.get('search')) query.set('search', params.get('search')!);
+    if (params.get('category')) query.set('category', params.get('category')!);
     if (params.get('minPrice')) query.set('minPrice', params.get('minPrice')!);
     if (params.get('maxPrice')) query.set('maxPrice', params.get('maxPrice')!);
-    query.set('sort', sort);
-    query.set('page', String(page));
+    query.set('sort', params.get('sort') ?? 'featured');
+    query.set('page', params.get('page') ?? '1');
     api<ProductListResponse>(`/products?${query}`)
-      .then(setData)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load products'))
-      .finally(() => setLoading(false));
-  }, [params, search, category, sort, page]);
+      .then((res) => {
+        if (!stale) setData(res);
+      })
+      .catch((err) => {
+        if (!stale) setError(getErrorMessage(err, 'Failed to load products'));
+      })
+      .finally(() => {
+        if (!stale) setLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [params]);
 
   const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);

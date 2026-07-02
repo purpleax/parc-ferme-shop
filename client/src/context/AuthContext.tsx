@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, getAuthToken, setAuthToken } from '../lib/api';
+import { api, ApiError, getAuthToken, setAuthToken } from '../lib/api';
 import type { User } from '../lib/types';
 
 interface AuthContextValue {
@@ -22,7 +22,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!getAuthToken()) return;
     api<{ user: User }>('/auth/me')
       .then((res) => setUser(res.user))
-      .catch(() => setAuthToken(null))
+      .catch((err) => {
+        // Only discard the token when the server actually rejected it — a
+        // network blip or 5xx must not log the user out.
+        if (err instanceof ApiError && err.status === 401) setAuthToken(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 

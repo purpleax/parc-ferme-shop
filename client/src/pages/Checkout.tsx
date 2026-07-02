@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { extractFieldErrors } from '../lib/errors';
 import type { Order } from '../lib/types';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
@@ -26,12 +27,6 @@ interface CardForm {
   name: string;
 }
 
-function fieldErrors(err: unknown): Record<string, string> {
-  if (err instanceof ApiError && Array.isArray(err.details)) {
-    return Object.fromEntries(err.details.map((d) => [d.field ?? '', d.message]));
-  }
-  return {};
-}
 
 export function Checkout() {
   const { cart, refresh } = useCart();
@@ -116,7 +111,7 @@ export function Checkout() {
       setOrder(res.order);
       setStep('payment');
     } catch (err) {
-      setErrors(fieldErrors(err));
+      setErrors(extractFieldErrors(err));
       setFormError(err instanceof ApiError ? err.message : 'Could not create the order');
     } finally {
       setBusy(false);
@@ -163,7 +158,7 @@ export function Checkout() {
       await refresh(); // cart was emptied server-side
       navigate(`/order/${order.id}/confirmation`);
     } catch (err) {
-      const fe = fieldErrors(err);
+      const fe = extractFieldErrors(err);
       // map server card field names onto local form
       if (fe['card.expYear'] || fe['card.expMonth']) fe['card.expiry'] = fe['card.expYear'] ?? fe['card.expMonth'];
       setErrors(fe);

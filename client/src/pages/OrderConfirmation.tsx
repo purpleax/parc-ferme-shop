@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { getErrorMessage } from '../lib/errors';
 import type { Order } from '../lib/types';
 import { formatPrice } from '../lib/format';
 import { ErrorState, Spinner } from '../components/ui';
@@ -13,7 +14,7 @@ export function OrderConfirmation() {
   useEffect(() => {
     api<{ order: Order }>(`/orders/${id}`)
       .then((res) => setOrder(res.order))
-      .catch((err) => setError(err.message ?? 'Could not load the order'));
+      .catch((err) => setError(getErrorMessage(err, 'Could not load the order')));
   }, [id]);
 
   if (error) return <ErrorState message={error} />;

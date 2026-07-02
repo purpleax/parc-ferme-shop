@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface Toast {
   id: number;
@@ -15,11 +15,21 @@ const ToastContext = createContext<ToastContextValue>({ toast: () => {} });
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach(clearTimeout);
+  }, []);
 
   const toast = useCallback((message: string, tone: Toast['tone'] = 'success') => {
     const id = nextId.current++;
     setToasts((prev) => [...prev, { id, message, tone }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3200);
+    const timer = setTimeout(() => {
+      timers.current.delete(timer);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3200);
+    timers.current.add(timer);
   }, []);
 
   return (

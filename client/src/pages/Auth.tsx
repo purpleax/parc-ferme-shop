@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDeviceVerification } from '../context/FastlyChallengeContext';
 import { ApiError } from '../lib/api';
+import { extractFieldErrors } from '../lib/errors';
 import { DeviceVerification } from '../components/DeviceVerification';
 import { Field, Spinner } from '../components/ui';
 
@@ -18,12 +19,6 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
   );
 }
 
-function detailErrors(err: unknown): Record<string, string> {
-  if (err instanceof ApiError && Array.isArray(err.details)) {
-    return Object.fromEntries(err.details.map((d) => [d.field ?? '', d.message]));
-  }
-  return {};
-}
 
 export function Login() {
   const { login } = useAuth();
@@ -106,7 +101,7 @@ export function Register() {
       await register(name, email, password);
       navigate(next);
     } catch (err) {
-      setErrors(detailErrors(err));
+      setErrors(extractFieldErrors(err));
       setError(err instanceof ApiError ? err.message : 'Registration failed');
     } finally {
       setBusy(false);
@@ -220,7 +215,7 @@ export function ResetPassword() {
       await resetPassword(token, password);
       navigate('/login');
     } catch (err) {
-      setErrors(detailErrors(err));
+      setErrors(extractFieldErrors(err));
       setError(err instanceof ApiError ? err.message : 'Could not reset your password');
     } finally {
       setBusy(false);

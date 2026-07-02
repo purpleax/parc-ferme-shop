@@ -1242,7 +1242,20 @@
         },
         "responses": {
           "201": {
-            "description": "Payment intent"
+            "description": "Payment intent (X-Payment-Event: payment-attempt)",
+            "headers": {
+              "X-Payment-Event": {
+                "description": "Payment outcome signal consumed by Fastly NGWAF card-testing rules",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "payment-attempt",
+                    "payment-success",
+                    "payment-failure"
+                  ]
+                }
+              }
+            }
           },
           "400": {
             "description": "Order not payable",
@@ -1338,10 +1351,23 @@
         },
         "responses": {
           "200": {
-            "description": "Payment succeeded"
+            "description": "Payment succeeded (X-Payment-Event: payment-success)",
+            "headers": {
+              "X-Payment-Event": {
+                "description": "Payment outcome signal consumed by Fastly NGWAF card-testing rules",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "payment-attempt",
+                    "payment-success",
+                    "payment-failure"
+                  ]
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid card",
+            "description": "Invalid card (X-Payment-Event: payment-failure)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1351,7 +1377,7 @@
             }
           },
           "402": {
-            "description": "Payment declined",
+            "description": "Payment declined (X-Payment-Event: payment-failure)",
             "content": {
               "application/json": {
                 "schema": {

@@ -406,6 +406,7 @@ describe('cart → checkout → payment flow', () => {
       .set('Authorization', `Bearer ${customerToken}`)
       .send({ orderId });
     expect(intent.status).toBe(201);
+    expect(intent.headers['x-payment-event']).toBe('payment-attempt');
 
     const res = await request(app)
       .post(`/api/payments/${intent.body.payment.id}/confirm`)
@@ -414,6 +415,7 @@ describe('cart → checkout → payment flow', () => {
     expect(res.status).toBe(402);
     expect(res.body.error.code).toBe('PAYMENT_DECLINED');
     expect(res.body.error.details.declineCode).toBe('card_declined');
+    expect(res.headers['x-payment-event']).toBe('payment-failure');
   });
 
   it('completes payment with the success test card', async () => {
@@ -430,6 +432,7 @@ describe('cart → checkout → payment flow', () => {
     expect(res.status).toBe(200);
     expect(res.body.payment.status).toBe('succeeded');
     expect(res.body.payment.cardLast4).toBe('4242');
+    expect(res.headers['x-payment-event']).toBe('payment-success');
 
     const order = await request(app)
       .get(`/api/orders/${orderId}`)

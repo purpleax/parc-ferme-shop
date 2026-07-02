@@ -31,6 +31,15 @@ const authEventHeader = {
   },
 };
 
+// Origin-set header the Fastly NGWAF card-testing (CC-VAL) templated rules key
+// off: attempt on payment-intent, success/failure on confirmation.
+const paymentEventHeader = {
+  'X-Payment-Event': {
+    description: 'Payment outcome signal consumed by Fastly NGWAF card-testing rules',
+    schema: { type: 'string', enum: ['payment-attempt', 'payment-success', 'payment-failure'] },
+  },
+};
+
 const productSchema = {
   type: 'object',
   properties: {
@@ -370,7 +379,7 @@ export const openapiSpec = {
       post: {
         tags: ['Payments'], summary: 'Create a mock payment intent for an order', security: [{ bearerAuth: [] }],
         requestBody: { required: true, ...json({ type: 'object', required: ['orderId'], properties: { orderId: { type: 'string', example: 'PF-1A7F2K' } } }) },
-        responses: { '201': { description: 'Payment intent' }, '400': errorResponse('Order not payable'), '404': errorResponse('Order not found') },
+        responses: { '201': { description: 'Payment intent (X-Payment-Event: payment-attempt)', headers: paymentEventHeader }, '400': errorResponse('Order not payable'), '404': errorResponse('Order not found') },
       },
     },
     '/api/payments/{paymentId}/confirm': {
@@ -400,7 +409,7 @@ export const openapiSpec = {
             },
           }),
         },
-        responses: { '200': { description: 'Payment succeeded' }, '402': errorResponse('Payment declined'), '400': errorResponse('Invalid card') },
+        responses: { '200': { description: 'Payment succeeded (X-Payment-Event: payment-success)', headers: paymentEventHeader }, '402': errorResponse('Payment declined (X-Payment-Event: payment-failure)'), '400': errorResponse('Invalid card (X-Payment-Event: payment-failure)') },
       },
     },
     '/api/newsletter': {

@@ -79,7 +79,9 @@ client (`client/dist` if present) → `errorHandler`. All errors flow through `A
   paginate), `images` (serves `server/public/products/*.jpg` real photos, falls back to a
   deterministic generated SVG; both `Cache-Control: max-age=86400, immutable`), `cart`,
   `orders` (orders + mock payments: Luhn check, derive brand/last4, **discard card**,
-  decrement stock, clear cart), `admin` (stats, product CRUD with soft-delete, order
+  decrement stock, clear cart; every payment response sets an **`X-Payment-Event`**
+  header — `payment-attempt` on intent, `payment-success|failure` on confirm — for
+  Fastly NGWAF card-testing CC-VAL rules), `admin` (stats, product CRUD with soft-delete, order
   management, customers), `misc` (health, newsletter), `shadow` (honeypot +
   undocumented surface — see below). `helpers.ts` has `mapProduct`,
   `imageUrl` (decides jpg vs svg), `PRODUCT_SELECT`, id/slug helpers.

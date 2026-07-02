@@ -226,6 +226,9 @@ Every auth response carries an **`X-Auth-Event`** header so an edge WAF (Fastly
 NGWAF ATO templated rules) can key off the origin's outcome: `login-success` /
 `login-failure`, `register-success` / `register-failure`, and
 `password-reset-attempt` / `password-reset-success` / `password-reset-failure`.
+The payment flow carries the equivalent **`X-Payment-Event`** header for Fastly's
+card-testing (CC-VAL) rules: `payment-attempt` on `POST /api/payments/intent`, and
+`payment-success` / `payment-failure` on `POST /api/payments/{id}/confirm`.
 
 ### Example curl commands
 
@@ -322,8 +325,14 @@ form (no semicolon) so it's exported to the process.
 | `--base URL` | `$API_URL` or `localhost:4000` | API base URL |
 | `--no-admin` | off | Skip the admin persona |
 | `--no-scraper` | off | Skip the scraper/bot persona (honeypot + shadow surface) |
+| `--carding` | off | Add a card-testing persona (payment carding / CC-VAL demo) |
 | `--verbose` | off | Log every request line |
 | `--quiet` | off | Suppress the periodic status line |
+
+The `--carding` persona authenticates, stands up one pending order, then floods
+`POST /api/payments/{id}/confirm` with rotating card numbers — mostly declines and
+invalid numbers, the odd success — generating the `X-Payment-Event` attempt/failure/
+success mix Fastly NGWAF card-testing rules watch for.
 
 Ctrl-C stops early and still prints the coverage report. **Heads-up:** the API does
 no rate limiting of its own — that's handled at the edge by Fastly, so sustained

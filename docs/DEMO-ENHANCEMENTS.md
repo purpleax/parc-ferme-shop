@@ -113,17 +113,19 @@ for it (`GC-VAL-ATTEMPT` / `GC-VAL-FAILURE` / `GC-VAL-SUCCESS`) — see the
 
 ---
 
-## Priority 3 — Payment carding signals (CC-VAL-*)
+## Priority 3 — Payment carding signals (CC-VAL-*)  ✅ SHIPPED
 
-Reuses the **existing** mock-payment flow — mostly a header + a persona, no new UI.
+Reused the **existing** mock-payment flow — a header + a persona, no new UI.
 
-- **Change:** emit `X-Payment-Event: attempt|success|failure` from
-  `POST /api/payments/:id/confirm` ([server/src/routes/orders.ts](../server/src/routes/orders.ts)).
-- **Simulator:** `CardFlood` persona — create order → intent → confirm with rotating
-  Luhn-valid numbers, mostly declines (small-value orders, the card-testing pattern).
+- **Done:** `X-Payment-Event` header — `payment-attempt` on `POST /api/payments/intent`,
+  `payment-success` / `payment-failure` on `POST /api/payments/:id/confirm`
+  ([server/src/routes/orders.ts](../server/src/routes/orders.ts)); documented in the
+  OpenAPI spec.
+- **Done:** `CardFlood` simulator persona (`npm run simulate -- --carding`) — stands up one
+  pending order and floods confirm with rotating card numbers (mostly declines + invalid,
+  the odd success), leaving the order pending between failures the way real carding does.
 - **Fastly:** NGWAF templated `CC-VAL-ATTEMPT/FAILURE/SUCCESS`; card-testing detection.
-
-**Effort:** S. **Risk:** low.
+- **Demo it:** [DEMO-PLAYBOOK.md → A11](DEMO-PLAYBOOK.md).
 
 ---
 
@@ -218,9 +220,9 @@ These raise the CDN cache-hit-ratio story too (static, cacheable content):
 
 ## Suggested sequencing
 
-1. **Honeypot + shadow APIs** (P1) — build first; two Fastly capabilities for the least effort.
-2. **Payment carding header** (P3) — one header + persona over existing flow; unlocks CC-VAL-*.
-3. **Gift cards** (P2) — the marquee carding demo (GC-VAL-*), plus a real shop feature.
+1. ~~**Honeypot + shadow APIs** (P1)~~ ✅ shipped — two Fastly capabilities for the least effort.
+2. ~~**Payment carding header** (P3)~~ ✅ shipped — one header + persona over existing flow; unlocks CC-VAL-*.
+3. **Gift cards** (P2) ← **next** — the marquee carding demo (GC-VAL-*), plus a real shop feature.
 4. **Limited drop** (P4) — the headline Bot Management showcase.
 5. Fill in P5–P9 per the specific demo you're running.
 6. Authenticity polish as time allows — good for the CDN cache story.

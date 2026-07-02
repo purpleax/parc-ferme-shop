@@ -25,6 +25,7 @@
  *   --base URL       API base URL                     (default $API_URL or http://localhost:4000)
  *   --no-admin       skip the admin persona
  *   --no-scraper     skip the scraper/bot persona (honeypot + shadow surface)
+ *   --carding        add a card-testing persona (payment carding / CC-VAL demo)
  *   --verbose        log every request line
  *   --quiet          suppress the periodic status line
  *
@@ -52,6 +53,7 @@ const DURATION_MS = Number(flag('duration', '60')) * 1000;
 const [DELAY_MIN, DELAY_MAX] = (flag('delay', '500-2000').split('-').map(Number));
 const WITH_ADMIN = !has('no-admin');
 const WITH_SCRAPER = !has('no-scraper');
+const WITH_CARDING = has('carding');
 const VERBOSE = has('verbose');
 const QUIET = has('quiet');
 
@@ -514,6 +516,107 @@ class Scraper {
   }
 }
 
+// ----------------------------- card-testing persona -----------------------------
+// Simulates payment carding: authenticate, stand up one pending order, then hammer
+// the confirm endpoint with a stream of rotating card numbers — mostly declines and
+// invalid (non-Luhn) numbers, with the occasional good card. Declines and invalid
+// cards leave the order pending, so the same order can be retried; a rare success
+// finalises it and the persona stands up a fresh one. Produces the X-Payment-Event
+// attempt/failure/success mix that Fastly NGWAF CC-VAL rules watch for.
+
+const digits16 = () => Array.from({ length: 16 }, () => randInt(0, 9)).join('');
+
+function cardingNumber() {
+  const r = Math.random();
+  if (r < 0.4) return TEST_CARDS.declined; // 402 card_declined
+  if (r < 0.65) return TEST_CARDS.insufficient; // 402 insufficient_funds
+  if (r < 0.95) return digits16(); // almost always non-Luhn → 400 invalid
+  return TEST_CARDS.ok; // rare success → 200
+}
+
+class CardFlood {
+  constructor(id) {
+    this.name = `carder-${id}`;
+    this.token = null;
+    this.orderId = null;
+  }
+
+  async ensureAuth() {
+    if (this.token) return;
+    const cred = pick(SEEDED_CUSTOMERS);
+    const res = await call(this, 'POST', '/api/auth/login', 'POST /api/auth/login', { body: cred });
+    if (res.status === 200 && res.json?.token) this.token = res.json.token;
+  }
+
+  async freshOrder() {
+    this.orderId = null;
+    const cart = await call(this, 'POST', '/api/cart', 'POST /api/cart');
+    if (cart.status !== 201) return;
+    const cartId = cart.json.cart.id;
+    const list = await call(this, 'GET', '/api/products?pageSize=48', 'GET /api/products');
+    const items = (list.json?.items ?? []).filter((p) => p.stock > 0);
+    if (items.length === 0) return;
+    const product = pick(items);
+    const add = await call(this, 'POST', `/api/cart/${cartId}/items`, 'POST /api/cart/:cartId/items', {
+      token: this.token,
+      body: { productId: product.id, qty: 1 },
+    });
+    if (add.status !== 201) return;
+    const order = await call(this, 'POST', '/api/orders', 'POST /api/orders', {
+      token: this.token,
+      body: {
+        cartId,
+        shipping: {
+          name: 'Card Tester',
+          line1: `${randInt(1, 999)} Test Ave`,
+          city: 'Reno',
+          postalCode: String(randInt(10000, 99999)),
+          country: 'United States',
+        },
+      },
+    });
+    if (order.status === 201) this.orderId = order.json.order.id;
+  }
+
+  async session() {
+    await this.ensureAuth();
+    if (!this.token) return;
+    if (!this.orderId) await this.freshOrder();
+    if (!this.orderId) return;
+
+    const bursts = randInt(6, 14);
+    for (let i = 0; i < bursts; i++) {
+      const intent = await call(this, 'POST', '/api/payments/intent', 'POST /api/payments/intent', {
+        token: this.token,
+        body: { orderId: this.orderId },
+      });
+      if (intent.status !== 201) {
+        await this.freshOrder();
+        if (!this.orderId) return;
+        continue;
+      }
+      const res = await call(
+        this,
+        'POST',
+        `/api/payments/${intent.json.payment.id}/confirm`,
+        'POST /api/payments/:paymentId/confirm',
+        {
+          token: this.token,
+          body: {
+            card: { number: cardingNumber(), expMonth: 12, expYear: 2030, cvc: String(randInt(100, 999)), name: 'Card Tester' },
+          },
+        }
+      );
+      // A success finalises the order — stand up a fresh one to keep testing.
+      if (res.status === 200) {
+        await this.freshOrder();
+        if (!this.orderId) return;
+      }
+      await sleep(randInt(50, 250)); // fast, bot-like cadence
+    }
+  }
+}
+
 // ----------------------------- runner -----------------------------
 
 let running = true;
@@ -627,7 +730,7 @@ const health = await preflight();
 console.log(c.bold(`\nParc Fermé traffic simulator → ${BASE}`));
 console.log(
   c.dim(
-    `  service=${health.service} db=${health.database} · ${USERS} shopper(s)${WITH_ADMIN ? ' + admin' : ''}${WITH_SCRAPER ? ' + scraper' : ''} · ` +
+    `  service=${health.service} db=${health.database} · ${USERS} shopper(s)${WITH_ADMIN ? ' + admin' : ''}${WITH_SCRAPER ? ' + scraper' : ''}${WITH_CARDING ? ' + carder' : ''} · ` +
       (LOOPS !== null ? `${LOOPS} session(s) each` : `${DURATION_MS / 1000}s`) +
       ` · think ${DELAY_MIN}-${DELAY_MAX}ms`
   )
@@ -639,6 +742,7 @@ startTicker();
 const actors = Array.from({ length: USERS }, (_, i) => new Shopper(i + 1));
 if (WITH_ADMIN) actors.push(new Admin());
 if (WITH_SCRAPER) actors.push(new Scraper(1));
+if (WITH_CARDING) actors.push(new CardFlood(1));
 
 await Promise.all(actors.map((a) => runActor(a)));
 

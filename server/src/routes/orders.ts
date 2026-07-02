@@ -6,6 +6,7 @@ import { badRequest, forbidden, notFound, paymentDeclined } from '../errors.js';
 import { asyncHandler, parse, requireAuth } from '../middleware.js';
 import { imageUrl, orderId } from './helpers.js';
 import type { AuthUser } from '../types.js';
+import type { Response } from 'express';
 
 export const ordersRouter = Router();
 export const paymentsRouter = Router();
@@ -197,7 +198,17 @@ function luhnValid(number: string): boolean {
 const cardBrand = (number: string) =>
   number.startsWith('4') ? 'visa' : number.startsWith('5') ? 'mastercard' : number.startsWith('3') ? 'amex' : 'card';
 
+// Origin-set signal for Fastly NGWAF card-testing (CC-VAL) templated rules,
+// mirroring the X-Auth-Event convention: `payment-attempt` when a payment is
+// started (intent), `payment-success`/`payment-failure` on its confirmation.
+// A stream of failures from one source with a rare success is the card-testing
+// shape these rules watch for.
+function paymentEvent(res: Response, event: string) {
+  res.setHeader('X-Payment-Event', event);
+}
+
 paymentsRouter.post('/intent', (req, res) => {
+  paymentEvent(res, 'payment-attempt');
   const user = req.user as AuthUser;
   const body = parse(intentSchema, req.body);
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(body.orderId) as OrderRow | undefined;
@@ -216,6 +227,7 @@ paymentsRouter.post('/intent', (req, res) => {
 });
 
 paymentsRouter.post('/:paymentId/confirm', asyncHandler(async (req, res) => {
+  try {
   const user = req.user as AuthUser;
   const paymentId = parse(z.string().startsWith('pay_').max(40), req.params.paymentId);
   const body = parse(confirmSchema, req.body);
@@ -286,6 +298,7 @@ paymentsRouter.post('/:paymentId/confirm', asyncHandler(async (req, res) => {
   });
   finalize();
 
+  paymentEvent(res, 'payment-success');
   res.json({
     payment: {
       id: paymentId,
@@ -296,4 +309,10 @@ paymentsRouter.post('/:paymentId/confirm', asyncHandler(async (req, res) => {
       cardLast4: last4,
     },
   });
+  } catch (err) {
+    // Declines, invalid/expired cards, and every other non-success exit are the
+    // card-testing failure signal.
+    paymentEvent(res, 'payment-failure');
+    throw err;
+  }
 }));

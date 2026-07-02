@@ -50,8 +50,8 @@ per demo.
 | A8 | Rate limiting at the edge | ✅ | NGWAF / rate limiting | App has no limiter; flood the origin, let Fastly throttle |
 | A9 | WAF injection & authz basics | ✅ | NGWAF / WAF | Injection payloads at search/inputs; 403 authz boundary |
 | A10 | Logging & request tracing | ✅ | Observability / SIEM | JSON access log + `X-Request-Id` end to end |
+| A11 | Payment carding (CC-VAL-*) | ✅ | NGWAF templates | `X-Payment-Event` header + `--carding` persona flood the confirm endpoint |
 | B1 | Gift-card carding (GC-VAL-*) | ⛔ planned | NGWAF templates | See [roadmap P2](DEMO-ENHANCEMENTS.md) |
-| B2 | Payment carding (CC-VAL-*) | ⛔ planned | NGWAF templates | Roadmap P3 |
 | B3 | Limited "drop" bot rush | ⛔ planned | Bot Management | Roadmap P4 |
 | B4 | Promo-code brute force | ⛔ planned | NGWAF / rate limit | Roadmap P5 |
 | B5 | Review spam / XSS sink | ⛔ planned | WAF | Roadmap P6 |
@@ -277,6 +277,34 @@ Each demo: **Demonstrates · Setup · Run · Show in Fastly · Expected / talk t
   the auth outcome and role, so a SIEM can build the ATO / abuse view without parsing bodies
   — and a malformed inbound id is regenerated, so nobody can inject junk into your logs."*
 
+## A11 · Payment carding (card-testing / CC-VAL-*)
+
+- **Demonstrates:** card-testing detection — a stream of card validations from one source,
+  mostly failing with the occasional success, which is the tell that stolen card numbers
+  are being checked against your payment flow.
+- **Setup:** behind Fastly NGWAF with the card-testing (CC-VAL) templated rules enabled.
+- **Run:**
+  ```bash
+  npm run simulate -- --carding --duration 120
+  # or watch the header flip by hand:
+  curl -sI -X POST http://localhost:4000/api/payments/intent \
+    -H "authorization: Bearer <jwt>" -H 'content-type: application/json' \
+    -d '{"orderId":"PF-XXXXXX"}' | grep -i x-payment-event      # → payment-attempt
+  #   confirm with 4000000000000002 → payment-failure ; with 4242… → payment-success
+  ```
+  The `--carding` persona stands up one pending order and floods
+  `POST /api/payments/{id}/confirm` with rotating numbers — mostly the decline cards and
+  random invalid numbers, the odd good card — so the order stays pending between failures
+  exactly like real carding.
+- **Show in Fastly:** CC-VAL signals (`CC-VAL-ATTEMPT`, `CC-VAL-FAILURE`, `CC-VAL-SUCCESS`)
+  and the confirm-failure rate per source IP. Ask Claude: *"run `ngwaf_get_top_signals`"* /
+  *"summarise threat activity"*.
+- **Talk track:** *"The origin tells the edge the outcome of every card check — `payment-attempt`
+  on intent, then success or failure on confirm. A carder generates a burst of failures from
+  one IP with a rare success; that success is the alarm, because it means a live card was
+  found. One header, 1:1 with the templated CC-VAL signals — same pattern as the auth ATO
+  signals."* (Gift-card carding, roadmap B1/P2, adds the `GC-VAL-*` equivalent.)
+
 ---
 
 # Part B — Roadmap demos (planned, not yet built)
@@ -289,7 +317,7 @@ the Fastly control it feeds. Sketch of the eventual demo for each:
 | Roadmap | Demo once built | Fastly control | Simulator persona |
 |---|---|---|---|
 | **P2 · Gift cards** | Brute-force gift-card balance checks → `X-Giftcard-Event` failure spike | NGWAF templated `GC-VAL-ATTEMPT/FAILURE/SUCCESS` | `GiftcardBruteforce` |
-| **P3 · Payment carding** | Card-testing with rotating Luhn numbers → `X-Payment-Event` | NGWAF templated `CC-VAL-*` | `CardFlood` |
+| ~~P3 · Payment carding~~ | ✅ shipped — see [A11](#a11--payment-carding-card-testing--cc-val-) | NGWAF templated `CC-VAL-*` | `CardFlood` |
 | **P4 · Limited drop** | Bot rush at drop time vs. a real buyer getting through the challenge | Bot Management challenge | `DropBot` |
 | **P5 · Promo codes** | High-cardinality code guessing → `X-Promo-Event` failures | Rate limiting / ATO-style | `PromoBrute` |
 | **P6 · Reviews (UGC)** | XSS/SQLi payloads + spam posted to review fields | WAF injection + content-spam | `ReviewSpam` |
@@ -297,8 +325,8 @@ the Fastly control it feeds. Sketch of the eventual demo for each:
 | **P8 · Order tracking** | Sequential order-ID enumeration → 404 burst | NGWAF / rate limit | `Enumerator` |
 | **P9 · Contact form** | Injection payloads at free-text fields | WAF injection | `attacker` |
 
-**Suggested build order** (from the roadmap): P1 ✅ → P3 → P2 → P4 → the rest per demo.
-When one ships, move its row up into Part A with the concrete commands.
+**Suggested build order** (from the roadmap): P1 ✅ → P3 ✅ → P2 (next) → P4 → the rest per
+demo. When one ships, move its row up into Part A with the concrete commands.
 
 ---
 
@@ -320,6 +348,7 @@ admin password comes from `ADMIN_PASSWORD` or is random-generated on first seed.
 | `--base URL` | `$API_URL` or localhost:4000 | Target (point at the Fastly host for a live demo) |
 | `--no-admin` | off | Skip the admin persona |
 | `--no-scraper` | off | Skip the scraper/honeypot persona |
+| `--carding` | off | Add the card-testing persona (A11 / CC-VAL demo) |
 | `--verbose` / `--quiet` | off | Per-request lines / suppress status line |
 
 **Key env vars:** `RESET_TEST_DOMAIN` (A7), `VITE_FASTLY_CHALLENGE_FILE` (A4),

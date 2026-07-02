@@ -192,6 +192,11 @@ router.patch('/orders/:id', (req, res) => {
   if (existing.status === 'cancelled' && body.status !== 'cancelled') {
     throw conflict('ORDER_CANCELLED', 'A cancelled order cannot change status');
   }
+  // Never send an order back to pending_payment — that would make it payable
+  // (and its stock decrementable) a second time via a fresh payment intent.
+  if (body.status === 'pending_payment' && existing.status !== 'pending_payment') {
+    throw conflict('ORDER_ALREADY_PROCESSED', 'An order cannot return to pending_payment');
+  }
   db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(body.status, id);
   const row = db.prepare('SELECT * FROM orders WHERE id = ?').get(id) as Parameters<typeof mapOrder>[0];
   res.json({ order: mapOrder(row, { includeItems: true }) });

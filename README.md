@@ -90,7 +90,9 @@ Design decisions that matter for a security demo:
   checkout, payment, admin CRUD. Nothing is faked client-side, so proxies, WAFs
   and API-discovery tools see a realistic, varied traffic shape (~30 endpoints).
 - **Request tracing:** every response carries `X-Request-Id` (honours an inbound
-  `X-Request-Id` header, so CDN/WAF-injected IDs propagate). Errors echo the id.
+  `X-Request-Id` header, so CDN/WAF-injected IDs propagate; malformed values —
+  anything beyond 64 chars of `[A-Za-z0-9_.-]` — are replaced with a fresh UUID
+  rather than echoed into logs). Errors echo the id.
 - **Logging:** every API request is logged as a console line *and* a JSON line in
   `server/logs/api.log` (timestamp, request id, method, path, status, duration,
   ip, user id, role, user-agent) — easy to tail during demos or ship to a SIEM.

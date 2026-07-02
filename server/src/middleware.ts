@@ -11,7 +11,11 @@ import type { AuthUser } from './types.js';
 // ---------- Request ID + security headers ----------
 
 export function requestId(req: Request, res: Response, next: NextFunction) {
-  req.id = (req.headers['x-request-id'] as string) || crypto.randomUUID();
+  // Honour a caller-supplied id (CDN tracing) but never echo arbitrary bytes
+  // into logs/headers — anything unexpected gets replaced, not sanitised.
+  const supplied = req.headers['x-request-id'];
+  req.id =
+    typeof supplied === 'string' && /^[\w.-]{1,64}$/.test(supplied) ? supplied : crypto.randomUUID();
   res.setHeader('X-Request-Id', req.id);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');

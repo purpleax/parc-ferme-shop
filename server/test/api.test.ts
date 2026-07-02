@@ -227,7 +227,7 @@ describe('password reset', () => {
 
   // The raw token never leaves the server (it's logged, not returned), so pull
   // it straight from the DB the way an operator would read it from the logs.
-  async function issueToken(): Promise<string> {
+  async function issueToken(ttlMs = 60000): Promise<string> {
     const crypto = await import('node:crypto');
     const { db } = await import('../src/db.js');
     const raw = crypto.randomBytes(32).toString('hex');
@@ -235,7 +235,7 @@ describe('password reset', () => {
     db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(user.id);
     db.prepare(
       'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)'
-    ).run(user.id, crypto.createHash('sha256').update(raw).digest('hex'), new Date(Date.now() + 60000).toISOString());
+    ).run(user.id, crypto.createHash('sha256').update(raw).digest('hex'), new Date(Date.now() + ttlMs).toISOString());
     return raw;
   }
 
@@ -280,6 +280,13 @@ describe('password reset', () => {
     const second = await request(app).post('/api/auth/reset-password').send({ token, password: 'Reused456' });
     expect(second.status).toBe(400);
     expect(second.headers['x-auth-event']).toBe('password-reset-failure');
+  });
+
+  it('rejects an expired token with password-reset-failure', async () => {
+    const token = await issueToken(-1000); // already expired
+    const res = await request(app).post('/api/auth/reset-password').send({ token, password: 'Expired123' });
+    expect(res.status).toBe(400);
+    expect(res.headers['x-auth-event']).toBe('password-reset-failure');
   });
 
   it('rejects a weak new password with password-reset-failure', async () => {
@@ -348,6 +355,28 @@ describe('cart → checkout → payment flow', () => {
 
     const tooMany = await request(app).patch(`/api/cart/${cartId}/items/${itemId}`).send({ qty: 999 });
     expect(tooMany.status).toBe(400);
+  });
+
+  it('removes items and clears the cart', async () => {
+    // A throwaway cart so the shared one stays intact for the order tests.
+    const created = await request(app).post('/api/cart');
+    const id = created.body.cart.id;
+    const products = await request(app).get('/api/products');
+    const [p1, p2] = products.body.items.filter((p: { stock: number }) => p.stock >= 1);
+    await request(app).post(`/api/cart/${id}/items`).send({ productId: p1.id, qty: 1 });
+    const added = await request(app).post(`/api/cart/${id}/items`).send({ productId: p2.id, qty: 1 });
+    expect(added.body.cart.items.length).toBe(2);
+
+    const removed = await request(app).delete(`/api/cart/${id}/items/${added.body.cart.items[0].id}`);
+    expect(removed.status).toBe(200);
+    expect(removed.body.cart.items.length).toBe(1);
+
+    const missing = await request(app).delete(`/api/cart/${id}/items/999999`);
+    expect(missing.status).toBe(404);
+
+    const cleared = await request(app).delete(`/api/cart/${id}`);
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.cart.itemCount).toBe(0);
   });
 
   it('requires auth to create an order', async () => {
@@ -505,6 +534,12 @@ describe('payment idempotency', () => {
 });
 
 describe('admin', () => {
+  it('requires a token at all (401, not 403)', async () => {
+    const res = await request(app).get('/api/admin/stats');
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
   it('blocks customers from admin endpoints', async () => {
     const res = await request(app).get('/api/admin/stats').set('Authorization', `Bearer ${customerToken}`);
     expect(res.status).toBe(403);
@@ -554,6 +589,17 @@ describe('admin', () => {
       .send({ status: 'shipped' });
     expect(patched.status).toBe(200);
     expect(patched.body.order.status).toBe('shipped');
+  });
+
+  it('never lets an order return to pending_payment', async () => {
+    const list = await request(app).get('/api/admin/orders').set('Authorization', `Bearer ${adminToken}`);
+    const target = list.body.orders.find((o: { status: string }) => o.status !== 'pending_payment' && o.status !== 'cancelled');
+    const res = await request(app)
+      .patch(`/api/admin/orders/${target.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'pending_payment' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('ORDER_ALREADY_PROCESSED');
   });
 
   it('lists customers with totals', async () => {

@@ -131,7 +131,12 @@ const paid = await call('POST', `/payments/${intent2.payment.id}/confirm`, {
   body: { card: { number: '4242424242424242', expMonth: 12, expYear: 2030, cvc: '123', name: 'Ava Chen' } },
 });
 console.log(dim(`    paid with ${paid.payment?.cardBrand} •••• ${paid.payment?.cardLast4}`));
-await call('GET', `/orders/${order.id}`, { token: customerToken });
+const confirmed = await call('GET', `/orders/${order.id}`, { token: customerToken });
+// The payment response alone doesn't prove the order flipped — check the DB state.
+if (confirmed.order?.status !== 'paid') {
+  console.log(red(`      Order ${order.id} should be paid, got ${confirmed.order?.status}`));
+  process.exitCode = 1;
+}
 await call('GET', '/orders', { token: customerToken });
 
 banner('AuthZ boundaries');

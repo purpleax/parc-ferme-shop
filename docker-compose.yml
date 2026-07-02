@@ -22,6 +22,9 @@ services:
       # Optional: choose the seeded admin password. If unset, a random one is
       # generated and printed once in the container logs on first seed.
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      # Optional: enable the reset-token test affordance for a throwaway domain so
+      # bulk scripts can generate password-reset-success signals (see README).
+      RESET_TEST_DOMAIN: "${RESET_TEST_DOMAIN:-}"
     volumes:
       # Persist the SQLite database between restarts. Remove the volume
       # (docker compose down -v) to reset to fresh seed data.

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { config } from '../config.js';
 import { db } from '../db.js';
 import { badRequest, conflict, invalidCredentials, notFound } from '../errors.js';
 import { parse, requireAuth, signToken } from '../middleware.js';
@@ -120,8 +121,9 @@ router.post('/forgot-password', (req, res) => {
   const body = parse(forgotPasswordSchema, req.body);
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(body.email) as UserRow | undefined;
 
+  let rawToken: string | undefined;
   if (user) {
-    const rawToken = crypto.randomBytes(32).toString('hex');
+    rawToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
     // Invalidate any outstanding tokens for this user, then issue a fresh one.
     db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(user.id);
@@ -135,9 +137,19 @@ router.post('/forgot-password', (req, res) => {
   }
 
   authEvent(res, 'password-reset-attempt');
-  res.json({
+
+  const payload: Record<string, unknown> = {
     message: 'If an account exists for that email, a password reset link has been sent.',
-  });
+  };
+  // Test affordance (opt-in via RESET_TEST_DOMAIN): return the token/link in the
+  // response for the configured throwaway domain only, so a bulk script can
+  // complete the reset flow without reading server logs. Real accounts on any
+  // other domain never receive a token here.
+  if (rawToken && config.resetTestDomain && body.email.endsWith(`@${config.resetTestDomain}`)) {
+    payload.resetToken = rawToken;
+    payload.resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${rawToken}`;
+  }
+  res.json(payload);
 });
 
 // Step 2 of password reset: submit the token + a new password. Any non-success

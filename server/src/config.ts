@@ -45,4 +45,9 @@ export const config = {
   logFile: process.env.LOG_FILE ?? path.join(__dirname, '..', 'logs', 'api.log'),
   photosDir: process.env.PHOTOS_DIR ?? path.join(__dirname, '..', 'public', 'products'),
   clientDist: path.join(__dirname, '..', '..', 'client', 'dist'),
+  // Opt-in test affordance: forgot-password returns the reset token/link in its
+  // response ONLY for emails on this domain (empty = disabled). Lets a bulk test
+  // script complete the reset flow without reading server logs. Real accounts
+  // (any other domain) never receive a token this way.
+  resetTestDomain: (process.env.RESET_TEST_DOMAIN ?? '').trim().toLowerCase().replace(/^@/, ''),
 };

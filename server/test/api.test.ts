@@ -5,6 +5,7 @@ import type { Express } from 'express';
 process.env.DATABASE_PATH = ':memory:';
 process.env.RATE_LIMIT_GENERAL = '10000';
 process.env.RATE_LIMIT_AUTH = '10000';
+process.env.RESET_TEST_DOMAIN = 'resettest.dev';
 
 let app: Express;
 let customerToken: string;
@@ -275,6 +276,36 @@ describe('password reset', () => {
     const res = await request(app).post('/api/auth/reset-password').send({ token, password: 'short' });
     expect(res.status).toBe(400);
     expect(res.headers['x-auth-event']).toBe('password-reset-failure');
+  });
+
+  it('returns the reset token in the response for the configured test domain', async () => {
+    const testEmail = 'flood-1@resettest.dev';
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Flood One', email: testEmail, password: 'FloodPass1' });
+
+    // forgot-password hands back the token directly — no log-reading needed.
+    const forgot = await request(app).post('/api/auth/forgot-password').send({ email: testEmail });
+    expect(forgot.status).toBe(200);
+    expect(forgot.headers['x-auth-event']).toBe('password-reset-attempt');
+    expect(typeof forgot.body.resetToken).toBe('string');
+
+    // That token completes a real reset (the success signal), end to end.
+    const reset = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: forgot.body.resetToken, password: 'FloodNew123' });
+    expect(reset.status).toBe(200);
+    expect(reset.headers['x-auth-event']).toBe('password-reset-success');
+
+    const login = await request(app).post('/api/auth/login').send({ email: testEmail, password: 'FloodNew123' });
+    expect(login.status).toBe(200);
+  });
+
+  it('never returns a reset token for non-test-domain emails', async () => {
+    const forgot = await request(app).post('/api/auth/forgot-password').send({ email: 'ava@demo.dev' });
+    expect(forgot.status).toBe(200);
+    expect(forgot.body.resetToken).toBeUndefined();
+    expect(forgot.body.resetUrl).toBeUndefined();
   });
 });
 

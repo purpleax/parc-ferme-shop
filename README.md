@@ -312,6 +312,34 @@ Ctrl-C stops early and still prints the coverage report. **Heads-up:** the API d
 no rate limiting of its own — that's handled at the edge by Fastly, so sustained
 high-volume runs from one IP may be throttled or blocked there.
 
+### Password-reset success traffic (for the WAF dashboard)
+
+`simulate.mjs` generates `password-reset-attempt` and `password-reset-failure`
+signals, but not `password-reset-success` — that needs a valid token, which
+normally only appears in the server logs. To generate successes in bulk without
+reading logs, set **`RESET_TEST_DOMAIN`** on the server (e.g. `resettest.dev`).
+`forgot-password` then returns the token in its JSON response **for that domain
+only**; real accounts on any other domain never receive one, so it stays safe on a
+public origin.
+
+The flow is three plain JSON requests — trivial to replicate in any client:
+
+| Step | Request | Signal |
+|---|---|---|
+| 1 | `POST /api/auth/register` `{name,email,password}` — email on the test domain | — |
+| 2 | `POST /api/auth/forgot-password` `{email}` → response includes `resetToken` | `password-reset-attempt` |
+| 3a | `POST /api/auth/reset-password` `{token,password}` (real token) | `password-reset-success` |
+| 3b | `POST /api/auth/reset-password` `{token,password}` (bogus token) | `password-reset-failure` |
+
+A ready-to-run, stdlib-only reference (no `pip install`) is included:
+
+```bash
+python3 scripts/reset_flood.py --base https://parcferme.fastlylab.com --count 100 --fail-rate 0.2
+```
+
+Enable it on the server by setting `RESET_TEST_DOMAIN=resettest.dev` (in your root
+`.env` for Docker Compose, or the shell for local dev), matching `--domain`.
+
 ## 6. Configuration
 
 | Env var | Default | Purpose |
@@ -321,6 +349,7 @@ high-volume runs from one IP may be throttled or blocked there.
 | `ADMIN_PASSWORD` | — | Seeded admin password. In production, if unset, a random one is generated and printed once to the boot log. Dev/test use the demo password. |
 | `DATABASE_PATH` | `server/data/store.db` | `:memory:` used by tests |
 | `LOG_FILE` | `server/logs/api.log` | JSON request log |
+| `RESET_TEST_DOMAIN` | — | If set (e.g. `resettest.dev`), `forgot-password` returns the reset token in its response **for that domain only** — lets a test script complete resets without reading logs. Real accounts never leak a token. Leave unset in normal use. |
 
 ## 7. Docker (only after local verification)
 

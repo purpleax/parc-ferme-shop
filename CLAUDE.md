@@ -66,7 +66,8 @@ client (`client/dist` if present) → `errorHandler`. All errors flow through `A
 - **`middleware.ts`** owns auth (`signToken`/`requireAuth`/`requireAdmin`), Zod validation
   (`parse(schema, data)` throws `ApiError` 400 with field details), cache-control, the
   logger, and `asyncHandler` (Express 4 does not forward async rejections — async routes
-  must be wrapped; only payment-confirm is async). There is **no app-level rate limiting**
+  must be wrapped; the bcrypt-using auth routes and payment-confirm are async). There is
+  **no app-level rate limiting**
   — that is handled at the Fastly edge.
 - **Routes** (`routes/`): `auth` (register/login/me + password reset via
   `forgot-password`/`reset-password`; single-use hashed tokens in

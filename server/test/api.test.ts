@@ -140,6 +140,19 @@ describe('auth', () => {
     expect(res.body.error.code).toBe('EMAIL_TAKEN');
   });
 
+  it('409s (not 500s) when two registrations for the same email race', async () => {
+    // Both requests pass the email pre-check before either inserts (the
+    // bcrypt hash awaits in between); the UNIQUE index must arbitrate.
+    const payload = { name: 'Race User', email: 'race@example.com', password: 'Password1' };
+    const [a, b] = await Promise.all([
+      request(app).post('/api/auth/register').send(payload),
+      request(app).post('/api/auth/register').send(payload),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+    const loser = a.status === 409 ? a : b;
+    expect(loser.body.error.code).toBe('EMAIL_TAKEN');
+  });
+
   it('rejects weak passwords with field details', async () => {
     const res = await request(app)
       .post('/api/auth/register')

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { db } from '../db.js';
 import { badRequest, conflict, invalidCredentials, notFound } from '../errors.js';
-import { parse, requireAuth, signToken } from '../middleware.js';
+import { asyncHandler, parse, requireAuth, signToken } from '../middleware.js';
 import type { AuthUser } from '../types.js';
 import type { Response } from 'express';
 
@@ -77,13 +77,16 @@ function authEvent(res: Response, event: string) {
 
 const sha256 = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
 
-router.post('/register', (req, res) => {
+// bcrypt work is async on purpose: a sync hash/compare blocks the event loop
+// for the better part of 100ms, which serializes the whole origin under the
+// login/registration floods this app exists to demonstrate.
+router.post('/register', asyncHandler(async (req, res) => {
   try {
     const body = parse(registerSchema, req.body);
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(body.email);
     if (existing) throw conflict('EMAIL_TAKEN', 'An account with this email already exists');
 
-    const hash = bcrypt.hashSync(body.password, 10);
+    const hash = await bcrypt.hash(body.password, 10);
     let result;
     try {
       result = db
@@ -106,13 +109,13 @@ router.post('/register', (req, res) => {
     authEvent(res, 'register-failure');
     throw err;
   }
-});
+}));
 
-router.post('/login', (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   try {
     const body = parse(loginSchema, req.body);
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(body.email) as UserRow | undefined;
-    if (!user || !bcrypt.compareSync(body.password, user.password_hash)) {
+    if (!user || !(await bcrypt.compare(body.password, user.password_hash))) {
       throw invalidCredentials();
     }
     const token = signToken({ id: user.id, email: user.email, name: user.name, role: user.role });
@@ -122,7 +125,7 @@ router.post('/login', (req, res) => {
     authEvent(res, 'login-failure');
     throw err;
   }
-});
+}));
 
 // Step 1 of password reset: request a link. Always responds 200 with an
 // identical body regardless of whether the account exists (anti-enumeration —
@@ -165,7 +168,7 @@ router.post('/forgot-password', (req, res) => {
 
 // Step 2 of password reset: submit the token + a new password. Any non-success
 // exit (bad/expired/used token, weak password) is tagged password-reset-failure.
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', asyncHandler(async (req, res) => {
   try {
     const body = parse(resetPasswordSchema, req.body);
     const row = db
@@ -179,7 +182,7 @@ router.post('/reset-password', (req, res) => {
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id) as UserRow | undefined;
     if (!user) throw badRequest('This password reset link is invalid or has expired.');
 
-    const hash = bcrypt.hashSync(body.password, 10);
+    const hash = await bcrypt.hash(body.password, 10);
     db.transaction(() => {
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id);
       db.prepare("UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?").run(row.id);
@@ -191,7 +194,7 @@ router.post('/reset-password', (req, res) => {
     authEvent(res, 'password-reset-failure');
     throw err;
   }
-});
+}));
 
 router.get('/me', requireAuth, (req, res) => {
   const me = req.user as AuthUser;

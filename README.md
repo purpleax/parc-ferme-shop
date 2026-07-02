@@ -459,6 +459,14 @@ It's **dormant until configured** — local dev, tests and CI are unaffected. Se
 Full setup, the list of edge paths to protect, and the fail-open/Docker build
 details are in **[docs/FASTLY-BOT-MANAGEMENT.md](docs/FASTLY-BOT-MANAGEMENT.md)**.
 
+## Running the demos
+
+For a step-by-step playbook of every demo this store supports — CDN caching, API
+discovery, the honeypot, bot challenges/ACSD, ATO signals, rate limiting, WAF and
+logging — with exact commands and what to show on the Fastly side, see
+**[docs/DEMO-PLAYBOOK.md](docs/DEMO-PLAYBOOK.md)**. The forward-looking feature
+roadmap is in **[docs/DEMO-ENHANCEMENTS.md](docs/DEMO-ENHANCEMENTS.md)**.
+
 ## Attribution & license
 
 - **Code** is released under the MIT License (see [`LICENSE`](LICENSE)).

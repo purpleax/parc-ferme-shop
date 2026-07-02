@@ -164,5 +164,7 @@ goes blank.**
 ## Doc map
 
 - [`README.md`](../README.md) — setup, run, API table, curl examples, troubleshooting.
+- [`docs/DEMO-PLAYBOOK.md`](DEMO-PLAYBOOK.md) — how to run every demo (built + roadmap), with commands and the Fastly-side steps.
+- [`docs/DEMO-ENHANCEMENTS.md`](DEMO-ENHANCEMENTS.md) — prioritised feature roadmap for future demos.
 - [`docs/FASTLY-BOT-MANAGEMENT.md`](FASTLY-BOT-MANAGEMENT.md) — challenge integration, config, kill switch, edge setup.
 - `server/openapi.json` / `.yaml` — importable API spec.

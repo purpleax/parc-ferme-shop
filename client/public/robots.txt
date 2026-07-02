@@ -1,0 +1,6 @@
+# Parc Fermé — fictional demo store.
+# The Disallow below is bait: no legitimate client requests it, so a crawler
+# that reads robots.txt to discover "hidden" paths reveals itself by hitting it.
+User-agent: *
+Allow: /
+Disallow: /api/special-offers

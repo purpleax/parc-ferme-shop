@@ -611,6 +611,39 @@ describe('admin', () => {
   });
 });
 
+describe('honeypot & shadow surface', () => {
+  it('serves the honeypot with a marker header', async () => {
+    const res = await request(app).get('/api/special-offers');
+    expect(res.status).toBe(200);
+    expect(res.headers['x-trap']).toBe('honeypot');
+    expect(Array.isArray(res.body.offers)).toBe(true);
+  });
+
+  it('serves the shadow endpoints', async () => {
+    const legacy = await request(app).get('/api/v1/orders');
+    expect(legacy.status).toBe(200);
+    expect(legacy.body.deprecated).toBe(true);
+
+    const metrics = await request(app).get('/api/internal/metrics');
+    expect(metrics.status).toBe(200);
+    expect(metrics.body.service).toBe('parc-ferme-api');
+
+    const cfg = await request(app).get('/api/debug/config');
+    expect(cfg.status).toBe(200);
+    expect(cfg.body.env).toBe('demo');
+  });
+
+  it('keeps the honeypot and shadow routes OUT of the OpenAPI spec', async () => {
+    const spec = await request(app).get('/api/openapi.json');
+    const paths = Object.keys(spec.body.paths);
+    // The whole point of API Discovery is that these are undocumented.
+    for (const p of ['/special-offers', '/v1/orders', '/internal/metrics', '/debug/config']) {
+      expect(paths).not.toContain(p);
+      expect(paths).not.toContain(`/api${p}`);
+    }
+  });
+});
+
 describe('newsletter (bot demo target)', () => {
   it('subscribes a valid email', async () => {
     const res = await request(app).post('/api/newsletter').send({ email: 'bot-demo@example.com' });

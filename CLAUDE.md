@@ -80,11 +80,19 @@ client (`client/dist` if present) → `errorHandler`. All errors flow through `A
   deterministic generated SVG; both `Cache-Control: max-age=86400, immutable`), `cart`,
   `orders` (orders + mock payments: Luhn check, derive brand/last4, **discard card**,
   decrement stock, clear cart), `admin` (stats, product CRUD with soft-delete, order
-  management, customers), `misc` (health, newsletter). `helpers.ts` has `mapProduct`,
+  management, customers), `misc` (health, newsletter), `shadow` (honeypot +
+  undocumented surface — see below). `helpers.ts` has `mapProduct`,
   `imageUrl` (decides jpg vs svg), `PRODUCT_SELECT`, id/slug helpers.
+- **`shadow.ts`** (`GET /api/special-offers` honeypot + `/api/v1/orders`,
+  `/api/internal/metrics`, `/api/debug/config`) is **intentionally excluded from
+  `openapi.ts`** and the README endpoint table — that is what makes Fastly API
+  Discovery flag them and the honeypot a clean bot signal. **Do not add these to the
+  spec.** The honeypot sets `X-Trap: honeypot`; the simulator's `scraper` persona
+  exercises them (see `SHADOW` list, tracked separately from `CANONICAL`).
 - **`openapi.ts`** is the hand-maintained OpenAPI 3.0.3 spec (source of truth), served at
   `/api/docs` (Swagger UI) and `/api/openapi.json`; `spec-cli.ts` exports it to static
-  `server/openapi.json`/`.yaml` (run `npm run spec` after editing).
+  `server/openapi.json`/`.yaml` (run `npm run spec` after editing). Covers every route
+  **except** the deliberately-undocumented `shadow.ts` surface above.
 - **`seed.ts`** holds the entire demo catalogue/users/orders and the `DEMO_ACCOUNTS`.
   `index.ts` auto-seeds on first run when the products table is empty.
 

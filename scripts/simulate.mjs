@@ -24,6 +24,7 @@
  *   --delay MIN-MAX  think-time between actions, ms   (default 500-2000)
  *   --base URL       API base URL                     (default $API_URL or http://localhost:4000)
  *   --no-admin       skip the admin persona
+ *   --no-scraper     skip the scraper/bot persona (honeypot + shadow surface)
  *   --verbose        log every request line
  *   --quiet          suppress the periodic status line
  *
@@ -50,6 +51,7 @@ const LOOPS = flag('loops', null) !== null ? Math.max(1, Number(flag('loops', '1
 const DURATION_MS = Number(flag('duration', '60')) * 1000;
 const [DELAY_MIN, DELAY_MAX] = (flag('delay', '500-2000').split('-').map(Number));
 const WITH_ADMIN = !has('no-admin');
+const WITH_SCRAPER = !has('no-scraper');
 const VERBOSE = has('verbose');
 const QUIET = has('quiet');
 
@@ -146,6 +148,18 @@ const CANONICAL = [
   'PATCH /api/admin/orders/:id',
   'GET /api/admin/customers',
   'GET /api/admin/customers/:id',
+];
+
+// Shadow / undocumented surface — real routes that are absent from the OpenAPI
+// spec on purpose (server/src/routes/shadow.ts). Tracked separately from
+// CANONICAL so they don't skew documented-endpoint coverage; the Scraper
+// persona exercises them so Fastly API Discovery has something to surface.
+const SHADOW = [
+  'GET /robots.txt',
+  'GET /api/special-offers',
+  'GET /api/v1/orders',
+  'GET /api/internal/metrics',
+  'GET /api/debug/config',
 ];
 
 // ----------------------------- request core -----------------------------
@@ -468,6 +482,38 @@ class Admin {
   }
 }
 
+// ----------------------------- scraper / bot persona -----------------------------
+// Behaves like an unsophisticated crawler: reads robots.txt to find "hidden"
+// paths, follows the honeypot link, probes undocumented surface, and harvests
+// the catalogue at speed. Generates the traffic that API Discovery + a honeypot
+// NGWAF rule are meant to catch. It never logs in.
+
+class Scraper {
+  constructor(id) {
+    this.name = `scraper-${id}`;
+    this.token = null;
+  }
+
+  async session() {
+    // Read robots.txt, then walk straight into the path it disallows.
+    await call(this, 'GET', '/robots.txt', 'GET /robots.txt');
+    await think();
+    await call(this, 'GET', '/api/special-offers', 'GET /api/special-offers');
+    await think();
+
+    // Probe forgotten / undocumented surface.
+    await call(this, 'GET', '/api/v1/orders', 'GET /api/v1/orders');
+    await call(this, 'GET', '/api/internal/metrics', 'GET /api/internal/metrics');
+    await call(this, 'GET', '/api/debug/config', 'GET /api/debug/config');
+    await think();
+
+    // Harvest the full catalogue (price/stock scraping) — big pages, no think.
+    for (let page = 1; page <= 3; page++) {
+      await call(this, 'GET', `/api/products?page=${page}&pageSize=48`, 'GET /api/products');
+    }
+  }
+}
+
 // ----------------------------- runner -----------------------------
 
 let running = true;
@@ -532,6 +578,15 @@ function printReport() {
   } else {
     console.log(c.green('  ✔ Every documented endpoint was exercised.'));
   }
+
+  const shadowHit = SHADOW.filter((e) => hit.has(e));
+  if (shadowHit.length > 0) {
+    console.log(c.bold('─'.repeat(78)));
+    console.log(
+      `  ${c.bold('Shadow/undocumented surface hit')} (not in the OpenAPI spec — should show up in ` +
+        `API Discovery):\n  ${c.yellow(shadowHit.join(', '))}`
+    );
+  }
   console.log('');
 }
 
@@ -572,7 +627,7 @@ const health = await preflight();
 console.log(c.bold(`\nParc Fermé traffic simulator → ${BASE}`));
 console.log(
   c.dim(
-    `  service=${health.service} db=${health.database} · ${USERS} shopper(s)${WITH_ADMIN ? ' + admin' : ''} · ` +
+    `  service=${health.service} db=${health.database} · ${USERS} shopper(s)${WITH_ADMIN ? ' + admin' : ''}${WITH_SCRAPER ? ' + scraper' : ''} · ` +
       (LOOPS !== null ? `${LOOPS} session(s) each` : `${DURATION_MS / 1000}s`) +
       ` · think ${DELAY_MIN}-${DELAY_MAX}ms`
   )
@@ -583,6 +638,7 @@ startTicker();
 
 const actors = Array.from({ length: USERS }, (_, i) => new Shopper(i + 1));
 if (WITH_ADMIN) actors.push(new Admin());
+if (WITH_SCRAPER) actors.push(new Scraper(1));
 
 await Promise.all(actors.map((a) => runActor(a)));
 

@@ -246,6 +246,17 @@ function Footer() {
           <NewsletterForm />
         </div>
       </div>
+      {/* Honeypot: hidden from humans and assistive tech, but link-following
+          scrapers fetch it. Any request to /api/special-offers is near-certainly
+          automated. Off-screen (not display:none — some bots skip that). */}
+      <a
+        href="/api/special-offers"
+        aria-hidden="true"
+        tabIndex={-1}
+        className="pointer-events-none absolute left-[-9999px] h-px w-px overflow-hidden opacity-0"
+      >
+        Members-only special offers
+      </a>
       <div className="border-t border-line/70 py-5 text-center text-xs text-muted">
         © {new Date().getFullYear()} Parc Fermé — demo environment only · photography via Wikimedia Commons (see sources.json)
         <span className="mt-1 block text-[10px] text-muted/50">

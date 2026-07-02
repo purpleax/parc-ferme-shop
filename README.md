@@ -99,6 +99,20 @@ Design decisions that matter for a security demo:
 - **Rate limiting is handled at the edge** (Fastly), not in the app — the API
   applies no request throttling of its own, keeping the origin a clean target for
   edge-side rate-limiting and bot-management demos.
+- **Honeypot & shadow surface (for Bot Management + API Discovery demos):** a
+  handful of real routes are served but deliberately kept **out** of the OpenAPI
+  spec (`server/src/routes/shadow.ts`):
+  - `GET /api/special-offers` — a pure honeypot. It is `Disallow`-ed in
+    `robots.txt` and linked only from a visually-hidden footer element, so no
+    human reaches it; a link-following or robots-reading bot does. Responses
+    carry an `X-Trap: honeypot` header and each hit logs a distinctive line —
+    match either in an NGWAF rule for a near-zero-false-positive bot signal.
+  - `GET /api/v1/orders`, `GET /api/internal/metrics`, `GET /api/debug/config`
+    — plausible "forgotten" surface (non-sensitive) for Fastly API Discovery to
+    flag as unknown/undocumented APIs.
+
+  The traffic simulator's `scraper` persona (on by default; `--no-scraper` to
+  skip) reads `robots.txt`, walks into the honeypot, and probes this surface.
 - **Cache-aware responses:** per-user and mutating API responses (`/api/admin/*`,
   `/api/auth/*`, `/api/cart/*`, `/api/orders/*`, `/api/payments/*`, and anything
   authenticated) are sent `Cache-Control: private, no-store` so a CDN never serves
@@ -307,6 +321,7 @@ form (no semicolon) so it's exported to the process.
 | `--delay MIN-MAX` | `500-2000` | Think-time between actions, ms |
 | `--base URL` | `$API_URL` or `localhost:4000` | API base URL |
 | `--no-admin` | off | Skip the admin persona |
+| `--no-scraper` | off | Skip the scraper/bot persona (honeypot + shadow surface) |
 | `--verbose` | off | Log every request line |
 | `--quiet` | off | Suppress the periodic status line |
 

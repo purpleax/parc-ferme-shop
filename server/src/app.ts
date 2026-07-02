@@ -20,6 +20,7 @@ import cartRouter from './routes/cart.js';
 import { ordersRouter, paymentsRouter } from './routes/orders.js';
 import adminRouter from './routes/admin.js';
 import miscRouter from './routes/misc.js';
+import shadowRouter from './routes/shadow.js';
 
 export function createApp() {
   const app = express();
@@ -50,6 +51,10 @@ export function createApp() {
   app.use('/api/orders', ordersRouter);
   app.use('/api/payments', paymentsRouter);
   app.use('/api/admin', adminRouter);
+
+  // Honeypot + shadow surface — real routes deliberately absent from the
+  // OpenAPI spec (see routes/shadow.ts). Mounted last, before the 404.
+  app.use('/api', shadowRouter);
 
   app.use('/api', apiNotFound);
 
